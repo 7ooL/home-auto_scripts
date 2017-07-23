@@ -34,11 +34,11 @@ def triggerSceneChange (whichtag, whichScene):
   home.setTransTimeOfScene(private.get('Scenes', str(whichtag)+'_'+str(whichScene)), public.get('auto', str(whichtag)+'_'+str(whichScene)+'_trans_time'))
   time.sleep(.2)
   home.playScene(private.get('Scenes', str(whichtag)+'_'+str(whichScene)),private.get('Groups','main_floor'))
+
   # set the transition time for the current scene back to quick on the hue bridge
 
-# this keeps making them trigger fast and not respecting the setrasition time, try using that fucntion after play, or a time delay before this
-#  home.SetQuickTrans(str(whichtag)+'_'+str(whichScene))
-
+  # this keeps making them trigger fast and not respecting the setrasition time, try using that fucntion after play, or a time delay before this
+  #  home.SetQuickTrans(str(whichtag)+'_'+str(whichScene))
 
 
 def calculateScenes(howmany):
@@ -116,13 +116,14 @@ def main(argv):
   # 27000 = 45 minutes
 
   # define all morning times based off global morning value
-
   gm = public.get('global','global_morning')
   global_Morning = datetime.datetime.strptime(gm, '%H:%M:%S')
 
   # make the morning triggers 30 minutes before global to allow fades
   newMorning = (global_Morning - datetime.timedelta(minutes=30)).time()
+  # check and set hvac wake timer in hvac section below
 
+  # check and set morning lights
   lm = public.get('auto','morning_1_on_time')
   if lm != 'null':
     light_Morning = datetime.datetime.strptime(lm, '%H:%M:%S').time()
@@ -131,22 +132,13 @@ def main(argv):
       public.set('auto','morning_1_on_time', newMorning)
       saveSettings()
 
+  # check and set morning light alarm clock
   wm = public.get('wakeup_schedule','localtime').split("T",1)[1]
   if wm != 'null':
     wake_Morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
     if newMorning != wake_Morning:
       # set bedroom wake schedule 
       home.setLightScheduleTime(1,newMorning)
-
-  hm = public.get('hvac', 'event_1_on_time')
-  if hm != 'null':
-    hvac_Morning = datetime.datetime.strptime(hm, '%H:%M').time()
- #  if newMorning != hvac_Morning:
-      # set HVAC wake time if different
-   #   payload = {'time': newMorning.hour+':'newMorning.minute}
-   #   home.setHVACzonedata
-
-
 
   # check and see if you are on vacation and configure
   if public.getboolean('settings', 'vacation'):
@@ -161,7 +153,7 @@ def main(argv):
     #public.set('settings','morning', 'on') 
     private.set('time','last_time', private.get('time','default_last_time'))
 
-  # set eveing start and end times to default if before first start time, so it auto is on before then it works
+  # set evening start and end times to default if before first start time, so it auto is on before then it works
   fst = private.get('time', 'first_time').split(':')
   if now <= now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2])):
     logging.debug('auto_run.py: Default settings applied '+str(now)+' <= '+ str(now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2]))))
@@ -272,12 +264,6 @@ def main(argv):
           home.groupLightsOff(0)      
           public.set('auto','currentscene', 'null')
 
-    #end of bed check, bed is on, check that its past that last_time and turn it off 
-   # else:
-   #   if now <= now.replace(hour=int(ls_bed[0]), minute=int(ls_bed[1]), second=int(ls_bed[2])):
-   #     logging.info('autoRun: end of bed check '+str(now.replace(hour=int(ls_bed[0]), minute=int(ls_bed[1]), second=int(ls_bed[2])))+' <= '+str(now)) 
-   #     public.set('settings', 'evening', 'on')
-
   #end auto run  
   else:
     logging.debug('auto_run.py: autorun is not enabled')
@@ -318,45 +304,55 @@ def main(argv):
   ##################
   # Pull HVAC Data #
   ##################
-  
+  # pull configuation file from hvac and set public ini file for web interface
 
-  zonedata = home.getHVACzonedata()
-  if (zonedata == "Error"):
+  if not hvac.pullConfig():
     public.set('hvac','status','error')
   else:
     public.set('hvac','status','ok')
+
+    zone = int(private.get('hvac', 'zone'))
     # adjust days of week num to allign with carrier and infinitude numbering
-    todayNum = (int(datetime.datetime.today().weekday())+1)
-    if todayNum == 7:
-      todayNum = 0
+    day = (int(datetime.datetime.today().weekday())+1)
+    if day == 7:
+      day = 0
 
     # clear out todays schedule, do this after the queries are made so it is faster
-    for x in [1,2,3,4]:
+    for x in range(0,5):
       public.set('hvac', "event_"+str(x)+"_on_time", 'null')
       public.set('hvac', "event_"+str(x)+"_activity", 'null')
     # get the HVAC mode
-    public.set('hvac','mode', home.getHVACmode());
+    public.set('hvac','mode', hvac.get_mode());
 
     # pull out today's hvac activity and times for schedule, insert it into config file
-    x=1
-    for period in zonedata['data']['zone'][0]['program'][0]['day'][todayNum]['period']:
-      if period['enabled'] == ['on']:
-        public.set('hvac', "event_"+str(x)+"_on_time", str(period['time']).replace('[u\'' ,'').replace("\']",""))
-        public.set('hvac', "event_"+str(x)+"_activity", str(period["activity"]).replace('[u\'','').replace("\']",""))
-        x+=1
+    for period in range(0,5):
+      if hvac.get_zone_program_day_period_enabled(zone, day, period) == 'on':
+        public.set('hvac', "event_"+str(period)+"_on_time", hvac.get_zone_program_day_period_time(zone, day, period)) 
+        public.set('hvac', "event_"+str(period)+"_activity", hvac.get_zone_program_day_period_activity(zone, day, period)) 
 
-    # pull out clsp and htsp for each profile
-    x=0
-    for activity in zonedata['data']['zone'][0]['activities'][0]['activity']:
-      public.set('profile_current', activity['id']+'_fan', str(activity['fan']).replace('[u\'','').replace("\']",""))
-      public.set('profile_current', activity['id']+'_clsp', str(activity['clsp']).replace('[u\'','').replace("\']",""))
-      public.set('profile_current', activity['id']+'_htsp', str(activity['htsp']).replace('[u\'','').replace("\']",""))
+    # pull out clsp and htsp for each profile name
+    # id: 0 = home, 1 = away, 2 = sleep, 3 = wake, 4 = manual
+    for id in range(0,5):
+      profile = hvac.get_zone_activity_name(zone, id)
+      public.set('profile_current', profile+'_fan', hvac.get_zone_activity_fan(zone, id))
+      public.set('profile_current', profile+'_clsp', hvac.get_zone_activity_clsp(zone, id))
+      public.set('profile_current', profile+'_htsp', hvac.get_zone_activity_htsp(zone, id))
 
-    vacaData = home.getHVACvacaData()
-    public.set('profile_current','vacmaxt', vacaData['vacmaxt'])
-    public.set('profile_current','vacmint', vacaData['vacmint'])
-    public.set('profile_current','vacfan', vacaData['vacfan'])
+    # get the avcation data too
+    public.set('profile_current','vacmaxt', hvac.get_vacmaxt())
+    public.set('profile_current','vacmint', hvac.get_vacmint())
+    public.set('profile_current','vacfan', hvac.get_vacfan())
 
+
+    # find if hvac has a wake profile actively set and set it to be inline with global morning
+    for period in range(0,5):
+      if public.get('hvac', 'event_'+str(period)+'_activity') == 'wake':
+        hm = public.get('hvac', 'event_'+str(period)+'_on_time')
+        hvac_Morning = datetime.datetime.strptime(hm, '%H:%M').time()
+        if hvac_Morning != newMorning:
+          hvac.set_zone_program_day_period_time(zone, day, period, newMorning.strftime('%H:%M'))
+          # make the hvac change
+          hvac.pushConfig()
 
   #########################
   # save any new settings #
