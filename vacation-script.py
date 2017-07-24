@@ -1,49 +1,39 @@
 import myhouse
-import os
-import sys, getopt
+import os, sys, datetime
 import logging
-import ConfigParser
-
-public = ConfigParser.RawConfigParser()
-public.read('/home/host/home_auto_scripts/public.ini')
-
-
-vacationFile = "/home/host/Dropbox/IFTTT/vacation/vacation.txt"
-vacationFile2 = "/var/www/html/home-auto/vacation/vacation.txt"
-
-
-
-def saveSettings():
-  with open(r'/home/host/home_auto_scripts/public.ini', 'wb') as configfile:
-    public.write(configfile)
 
 def main(argv):
 
-  logging.debug('vacation script started') 
+  now = datetime.datetime.now()
   home = myhouse.Home(); 
-  public.set('settings','autorun', 'on')
 
-  if public.getboolean('settings', 'vacation'):
-    logging.info('vacation mode toggled off') 
-    public.set('settings','vacation', 'off')
-    public.set('settings','morning', 'on')
+  logging.debug('Running vacation script') 
+
+  vacationFile = "/home/host/Dropbox/IFTTT/vacation/vacation.txt"
+  vacationFile2 = "/var/www/html/home-auto/vacation/vacation.txt"
+
+  home.public.set('settings','autorun', 'on')
+
+  if home.public.getboolean('settings', 'vacation'):
+    logging.info('Vacation mode toggled off') 
+    home.public.set('settings','vacation', 'off')
+    home.public.set('settings','morning', 'on')
   else:
-    logging.info('vacation mode toggled on') 
-    public.set('settings','vacation', 'on')
-    public.set('settings','morning', 'off')
+    logging.info('Vacation mode toggled on') 
+    home.public.set('settings','vacation', 'on')
+    home.public.set('settings','morning', 'off')
 
-  saveSettings()
+  home.saveSettings()
 
   if os.path.isfile(vacationFile):
     os.remove(vacationFile)
-    logging.debug('vacation-script: removeing '+vacationFile)
+    logging.debug('removeing '+vacationFile)
   if os.path.isfile(vacationFile2):
     os.remove(vacationFile2)
-    logging.debug('vacation-script: removeing '+vacationFile2)
+    logging.debug('removeing '+vacationFile2)
 
-
-
-  logging.debug('vacation script finished') 
+  end = datetime.datetime.now()
+  logging.debug('finished '+str(end-now))
 
 if __name__ == "__main__":
   main(sys.argv[1:])
