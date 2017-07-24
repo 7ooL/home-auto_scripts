@@ -13,31 +13,34 @@ import logging
 from logging.config import BaseConfigurator
 from logging.config import fileConfig
 
-private = ConfigParser.RawConfigParser()
-private.read('/home/host/home_auto_scripts/private.ini')
-
-bridgeIP = private.get('Bridge','ip')
-bridgeUN = private.get('Bridge','username')
-
-hvacIP = private.get('hvac', 'ip')
-hvacPort = private.get('hvac', 'port')
-
-public = ConfigParser.RawConfigParser()
-public.read('/home/host/home_auto_scripts/public.ini')
-
-
-
 logging.config.fileConfig('/home/host/home_auto_scripts/logging.ini')
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
-#logging.getLogger("pyInfinitude".setLevel(logging.WARNING)
 
-class Home:
+class Home(object):
+
+  private = ConfigParser.RawConfigParser()
+  private.read('/home/host/home_auto_scripts/private.ini')
+
+  public = ConfigParser.RawConfigParser()
+  public.read('/home/host/home_auto_scripts/public.ini')
+
+  bridgeIP = private.get('Bridge','ip')
+  bridgeUN = private.get('Bridge','username')
+
+  hvacIP = private.get('hvac', 'ip')
+  hvacPort = private.get('hvac', 'port')
+
+  def saveSettings(self):
+    with open(r'/home/host/home_auto_scripts/public.ini', 'wb') as configfile:
+      Home.public.write(configfile)
+    with open(r'/home/host/home_auto_scripts/private.ini', 'wb') as configfile:
+      Home.private.write(configfile)
 
   def kevo(self, command):
     logging.debug('command:'+str(command))
-    username = private.get('Kevo','username')
-    password = private.get('Kevo','password')
+    username = Home.private.get('Kevo','username')
+    password = Home.private.get('Kevo','password')
     Door = pyKevo.pyKevo(username,password)
     Door.connect()
     if command == "status":
@@ -60,13 +63,13 @@ class Home:
   def setTransTimeOfScene(self, sid, transtime):
     logging.debug('SID:'+str(sid)+' transtime:'+str(transtime))
     # get the current light states in the scene to update transition times
-    api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/scenes/'+sid
+    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
     r = requests.get(api_url)
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
     for lights in json_objects['lightstates'].iteritems():
       lights[1]['transitiontime'] = int(transtime)
-      api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
+      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
       payload = lights[1]
       r = requests.put(api_url, data=json.dumps(payload))
       logging.debug(r.text)
@@ -78,13 +81,13 @@ class Home:
   def setBringhtOfScene(self, sid, bri):
     logging.debug('SID:'+str(sid)+' bri:'+str(bri))
     # get the current light states in the scene to update transition times
-    api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/scenes/'+sid
+    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
     r = requests.get(api_url)
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
     for lights in json_objects['lightstates'].iteritems():
       lights[1]['bri'] = int(bri)
-      api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
+      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
       payload = lights[1]
       r = requests.put(api_url, data=json.dumps(payload))
       logging.debug(r.text)
@@ -93,11 +96,11 @@ class Home:
     logging.debug('END')
 
   def playScene(self, sid, gid):
-    for key, value in private.items('Scenes'):
+    for key, value in Home.private.items('Scenes'):
       if value == sid:
         logging.info(key)
     # dealing with all lights, use group 0
-    api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/groups/'+str(gid)+'/action'
+    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
     payload = {'scene': sid}
     r = requests.put(api_url, data=json.dumps(payload))
@@ -109,7 +112,7 @@ class Home:
   def groupLightsOff (self, gid):
     logging.debug('GID:'+str(gid))
     # dealing with all lights, use group 0
-    api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/groups/'+str(gid)+'/action'
+    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
     payload = {'on': False,'transitiontime': 100}
     r = requests.put(api_url, data=json.dumps(payload))
@@ -120,7 +123,7 @@ class Home:
   def groupLightsOn (self, gid):
     logging.debug('GID:'+str(gid))
     # dealing with all lights, use group 0
-    api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/groups/'+str(gid)+'/action'
+    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
     payload = {'on': True,'transitiontime': 100}
     r = requests.put(api_url, data=json.dumps(payload))
@@ -131,7 +134,7 @@ class Home:
 
   def singleLightCountdown(self, light, transTime ):
     logging.debug('light:'+str(light)+' transtime:'+str(transTime))
-    api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/lights/'+light+'/state'
+    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/lights/'+light+'/state'
     payload = {'on': False,'transitiontime': transTime}
     r = requests.put(api_url, data=json.dumps(payload))
     logging.debug(r.text)
@@ -142,7 +145,7 @@ class Home:
 
   def setCountdownLights (self, group, color, alert):
     logging.debug('group:'+str(group))
-    api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/groups/'+group+'/action'
+    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+group+'/action'
     if color == "blue":
 #blue      hue=47125
       hue=47125 
@@ -168,7 +171,7 @@ class Home:
   def saveLightState (self, sid):
     # saves the current light state of the lights in the scene
     logging.debug('sid:'+str(sid))
-    api_url = 'http://'+bridgeIP+'/api/'+bridgeUN+'/scenes/'+sid
+    api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
     tempName = 'saveState_'+time.strftime('%a-%H-%M-%S')
     logging.debug('saveLightState: tempName='+tempName)
     payload = {'name':tempName, "storelightstate": True} 
@@ -178,7 +181,7 @@ class Home:
   def getLightSchedule (self, id):
     # saves the current light state of the lights in the scene
     logging.debug('id:'+str(id))
-    api_url = 'http://'+bridgeIP+'/api/'+bridgeUN+'/schedules/'+str(id)
+    api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
     r = requests.get(api_url)
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
@@ -188,7 +191,7 @@ class Home:
   def setLightScheduleStatus (self, id, status):
     # saves the current light state of the lights in the scene
     logging.debug('id:'+str(id)+' status:'+str(status))
-    api_url = 'http://'+bridgeIP+'/api/'+bridgeUN+'/schedules/'+str(id)
+    api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
     payload = payload = {'status': status} 
     r = requests.put(api_url, data=json.dumps(payload))
     logging.info(r.text)
@@ -197,7 +200,7 @@ class Home:
   def setLightScheduleTime (self, id, time):
     # saves the current light state of the lights in the scene
     logging.debug('id:'+str(id)+' time:'+str(time))
-    api_url = 'http://'+bridgeIP+'/api/'+bridgeUN+'/schedules/'+str(id)
+    api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
     payload = payload = {'localtime': "W127/T"+str(time)} 
     r = requests.put(api_url, data=json.dumps(payload))
     logging.info(r.text)
@@ -216,13 +219,13 @@ class Home:
         lightList.append(light)
       else:
         payload = {'on': False}
-      api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/lights/'+str(light['light'])+'/state/'
+      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/lights/'+str(light['light'])+'/state/'
       r = requests.put(api_url, data=json.dumps(payload))
       logging.debug(r.text)
       if 'error' in r.text:
         logging.error(r.text)
     # update movie temp scene with the blubs that should be on
-    api_url='http://'+bridgeIP+'/api/'+bridgeUN+'/scenes/'+sid
+    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
     payload = {'lights':lightList, "storelightstate": True}
     r = requests.put(api_url, data=json.dumps(payload))
     logging.info(r.text)
@@ -232,7 +235,7 @@ class Home:
 
   def SetQuickTrans(self, scene):
     logging.debug('scene'+scene)
-    self.setTransTimeOfScene(private.get('Scenes', scene), 10)
+    self.setTransTimeOfScene(Home.private.get('Scenes', scene), 10)
     time.sleep(.5)
     logging.debug('END')
 
@@ -282,102 +285,96 @@ class Home:
 
 
 
-  def getHVACmode(self):
-    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/mode'
-    r = requests.get(api_url)
-    json_str = json.dumps(r.json())
-    json_objects = json.loads(json_str)
-    logging.debug('myhouse.getHVACmode: END')
-    return json_objects['data']
+#  def getHVACmode(self):
+#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/mode'
+#    r = requests.get(api_url)
+#    json_str = json.dumps(r.json())
+#    json_objects = json.loads(json_str)
+#    logging.debug('myhouse.getHVACmode: END')
+#    return json_objects['data']
 
-  def getHVACvacaData(self):
-    logging.debug('myhouse.getHVACvacaData')
-    d = {}
-    vacaData = [ 'vacmaxt', 'vacmint', 'vacfan' ]
-    for setting in vacaData:
-      api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/'+setting
-      r = requests.get(api_url)
-      json_str = json.dumps(r.json())
-      json_objects = json.loads(json_str)
-      d[setting] = json_objects['data']
-    logging.debug('myhouse.getHVACvacaData: END')
-    return d
+#  def getHVACvacaData(self):
+#    logging.debug('myhouse.getHVACvacaData')
+#    d = {}
+#    vacaData = [ 'vacmaxt', 'vacmint', 'vacfan' ]
+#    for setting in vacaData:
+#      api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/'+setting
+#      r = requests.get(api_url)
+#      json_str = json.dumps(r.json())
+#      json_objects = json.loads(json_str)
+#      d[setting] = json_objects['data']
+#    logging.debug('myhouse.getHVACvacaData: END')
+#    return d
 
-  def getHVACzonedata(self):
-    logging.debug('myhouse.getHVACzonedata')
-    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/zones'
-    try:
-      r = requests.get(api_url)
-    except:
-      logging.error('myhouse.getHVACzonedata: request error')
-      return "Error"
-    else:
-      if 'error' in r.text:
-        logging.error(r.text)
-        return "Error";
-      json_str = json.dumps(r.json())
-      json_objects = json.loads(json_str)
-      todayNum = (int(datetime.datetime.today().weekday())+1)
-      logging.debug('myhouse.getHVACzonedata: END')
-      return json_objects
+#  def getHVACzonedata(self):
+#    logging.debug('myhouse.getHVACzonedata')
+#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/zones'
+#    try:
+#      r = requests.get(api_url)
+#    except:
+#      logging.error('myhouse.getHVACzonedata: request error')
+#      return "Error"
+#    else:
+#      if 'error' in r.text:
+#        logging.error(r.text)
+#        return "Error";
+#      json_str = json.dumps(r.json())
+#      json_objects = json.loads(json_str)
+#      todayNum = (int(datetime.datetime.today().weekday())+1)
+#      logging.debug('myhouse.getHVACzonedata: END')
+#      return json_objects
 
-  def getHVACstatus(self):
-    logging.debug('myhouse.getHVACstatus')
-    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/status.json'
-    try:
-      r = requests.get(api_url)
-    except:
-      logging.error('myhouse.getHVACstatus: request error')
-      return "Error"
-    else:
-      if 'error' in r.text:
-        logging.error(r.text)
-        return "Error";
-      json_str = json.dumps(r.json())
-      json_objects = json.loads(json_str)
-      logging.debug('myhouse.getHVACstatus: END')
-      return json_objects
+#  def getHVACstatus(self):
+#    logging.debug('myhouse.getHVACstatus')
+#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/status.json'
+#    try:
+#      r = requests.get(api_url)
+#    except:
+#      logging.error('myhouse.getHVACstatus: request error')
+#      return "Error"
+#    else:
+#      if 'error' in r.text:
+#        logging.error(r.text)
+#        return "Error";
+#      json_str = json.dumps(r.json())
+#      json_objects = json.loads(json_str)
+#      logging.debug('myhouse.getHVACstatus: END')
+#      return json_objects
 
 
-  def setHVACprofile(self, until, profile):
-#    minute = (now.minute // 15+1)*15
-#    adjT = now.replace(minute=0, second=0)+datetime.timedelta(minutes=minute)
-#    until = adjT.strftime("%H:%M")
-    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/1/hold?activity='+profile+'&until="'+until+'"'
-    current_activity = public.get('hvac_current', 'currentActivity')
-    if current_activity !=  profile :
-      logging.info('myhouse.setHVACprofile: '+profile)
-#    public.set('hvac_current', "currentActivity", profile)
-#    public.set('hvac_current', "hold_time", until)
-#    public.set('hvac_current', "hold", 'on')
-    with open(r'/home/host/home_auto_scripts/public.ini', 'wb') as configfile:
-      public.write(configfile)
-    r = requests.get(api_url)
-    logging.debug(r)
-    logging.debug('myhouse.setHVACprofile: END')
+#  def setHVACprofile(self, until, profile):
+#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/1/hold?activity='+profile+'&until="'+until+'"'
+#    current_activity = public.get('hvac_current', 'currentActivity')
+#    if current_activity !=  profile :
+#      logging.info('setting '+profile)
+#    with open(r'/home/host/home_auto_scripts/public.ini', 'wb') as configfile:
+#      public.write(configfile)
+#    r = requests.get(api_url)
+#    logging.debug(r)
+#    logging.debug('END')
 
-  def setHVACzonedata(self, payload):
-    logging.debug('myhouse.setHVACzonedata')
-    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/zones'
-    payload = lights[1]
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.info(r.text)
+#  def setHVACzonedata(self, payload):
+#    logging.debug('myhouse.setHVACzonedata')
+#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/zones'
+#    payload = lights[1]
+#    r = requests.put(api_url, data=json.dumps(payload))
+#    logging.info(r.text)
 
-  def setHVACmanual(self, temp):
-    ct = float(public.get('hvac_current', 'rt'))
-    temp = float(temp)
-    if ct > temp:
-      logging.debug('myhouse.setHVACmanual: '+str(ct)+" > "+str(temp))
-      clsp = temp
-      htsp = temp - 3
-    elif ct < temp:
-      logging.debug('myhouse.setHVACmanual: '+str(ct)+" < "+str(temp))
-      clsp = temp + 3
-      htsp = temp 
-    else:
-      clsp = temp
-      htsp = temp
-    logging.info('myhouse.setHVACmanual: temp:'+str(temp)+' clsp:'+str(clsp)+' htsp:'+str(htsp))
-    api_url = 'http://'+str(hvacIP)+':'+str(hvacPort)+'/api/1/activity/manual?clsp='+str(clsp)+'&htsp='+str(htsp)
-    r = requests.get(api_url)
-    logging.debug(r)
+#  def setHVACmanual(self, temp):
+#    ct = float(public.get('hvac_current', 'rt'))
+#    temp = float(temp)
+#    if ct > temp:
+#      logging.debug('myhouse.setHVACmanual: '+str(ct)+" > "+str(temp))
+#      clsp = temp
+#      htsp = temp - 3
+#    elif ct < temp:
+#      logging.debug('myhouse.setHVACmanual: '+str(ct)+" < "+str(temp))
+#      clsp = temp + 3
+#      htsp = temp 
+#    else:
+#      clsp = temp
+#      htsp = temp
+#    logging.info('myhouse.setHVACmanual: temp:'+str(temp)+' clsp:'+str(clsp)+' htsp:'+str(htsp))
+#    api_url = 'http://'+str(hvacIP)+':'+str(hvacPort)+'/api/1/activity/manual?clsp='+str(clsp)+'&htsp='+str(htsp)
+#    r = requests.get(api_url)
+#    logging.debug(r)
