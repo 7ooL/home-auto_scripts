@@ -17,7 +17,7 @@ def main(argv):
   if os.path.isfile(leaveFile):
     with file(leaveFile) as f:
       s = f.readline().rstrip()
-      logging.info(s)
+      logging.info('marking '+s+' as not home')
       home.public.set("people_home", s,"no")
       home.saveSettings()
 
@@ -30,7 +30,7 @@ def main(argv):
           logging.debug('leave-script: '+person+' is still home, not running leave function')
 
   if run:
-    logging.debug('leave-script: Executing RUN()')
+    logging.debug('Executing RUN()')
     time.sleep(2)
     home.public.set('settings','autorun', 'off')
     home.public.set ('auto','currentscene','null')

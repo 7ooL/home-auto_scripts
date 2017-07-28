@@ -98,7 +98,7 @@ class Home(object):
   def playScene(self, sid, gid):
     for key, value in Home.private.items('Scenes'):
       if value == sid:
-        logging.info(key)
+        logging.info(str(key)+' '+str(value))
     # dealing with all lights, use group 0
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition

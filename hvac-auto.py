@@ -17,11 +17,12 @@ def main(argv):
   hvac = pyInfinitude.pyInfinitude.infinitude(hvacIP,hvacPort,hvacFile, hvacStatus)
 
   # pull and set current hvac conditions
-  current_humid = home.public.get('hvac_current', 'humid')
-  current_heat_mode = home.public.get('hvac_current', 'heat_mode')
-  
+  prev_humid = home.public.get('hvac_current', 'humid')
+  prev_hold = home.public.get('hvac_current', "hold")
+  prev_profile = home.public.get('hvac_current', 'currentactivity')
+
   if not hvac.pullStatus():
-    return
+    logging.error('pullStatus Fail')
   else:
     zone = int(home.private.get('hvac', 'zone'))
     home.public.set('hvac_current', "rt", hvac.get_current_zone_rt(zone)) # current temp
@@ -41,53 +42,59 @@ def main(argv):
     home.public.set('hvac_current', 'updating', 'no')
     home.saveSettings()
 
-    new_humid = home.public.get('hvac_current', 'humid')
-    if current_humid !=  new_humid :
-      if new_humid == 'on' :
-        logging.info('Hudmidifer turned on')
-      else :
-        logging.info('Hudmidifer turned off')
+    current_humid = home.public.get('hvac_current', 'humid')
+    if prev_humid !=  current_humid :
+      logging.info('humid status change: '+prev_humid+' to '+current_humid)
 
-  # setTime allows HVAC to be set ahead so not to undo itself
-  setTime = datetime.datetime.strptime( (now + datetime.timedelta(minutes=3)).strftime("%H:%M"), '%H:%M')
-  profile = home.public.get('hvac_current', 'currentactivity')
-  hold = home.public.get('hvac_current','hold')
-  hold_time = home.public.get('hvac_current','hold_time')
+    current_hold = home.public.get('hvac_current','hold')
+    if prev_hold != current_hold:
+      logging.info('hold status change: '+prev_hold+' to '+current_hold)
 
-  if hold_time == "[{}]" :
-    hold_time = now.time()
-  else :
-    hold_time = datetime.datetime.strptime(home.public.get('hvac_current','hold_time'), '%H:%M').time()
+    current_profile = home.public.get('hvac_current', 'currentactivity')
+    if prev_profile != current_profile:
+      logging.info('profile status change: '+prev_profile+' to '+current_profile)
 
-  logging.debug('profile = '+profile+', hold = '+hold+', hold_time = '+hold_time.strftime("%H:%M") )
+    # setTime allows HVAC to be set ahead so not to undo itself
+    setTime = datetime.datetime.strptime( (now + datetime.timedelta(minutes=3)).strftime("%H:%M"), '%H:%M')
+    hold_time = home.public.get('hvac_current','hold_time')
 
-  if home.public.getboolean('settings', 'hvac_auto'):
-    ran=False
-    until = setTime.strftime("%H:%M")
-    # check if any one is home
-    for section in home.public.sections():
-      if section == "people_home":
-        for person, value in home.public.items(section):
-          if value == 'yes' and not ran:
-            ran='True'
-            # someone is home, Check HVAC profiles
-            logging.debug(person+' home, checking if AWAY profile')
-            if profile == 'away':
-              # set hvac to home for 15 minutes
-              if hvac.set_current_profile(until,'home'):
-                current_activity = home.public.get('hvac_current', 'currentActivity')
-              if current_activity !=  'home' :
-                logging.info('setting home until '+until)
+    if hold_time == "[{}]" :
+      hold_time = now.time()
+    else :
+      hold_time = datetime.datetime.strptime(home.public.get('hvac_current','hold_time'), '%H:%M').time()
 
-    # if ran is false, then no one is home, check profiles
-    if not ran:
-      logging.debug('nobody home, checking for test')
-      if hold_time < setTime.time():
-        # set hvac to home for 15 minutes
-        if hvac.set_current_profile(until,'away'):
-          current_activity = home.public.get('hvac_current', 'currentActivity')
-        if current_activity !=  'away' :
-          logging.info('setting away until '+until)
+    logging.debug('profile = '+current_profile+', hold = '+current_hold+', hold_time = '+hold_time.strftime("%H:%M") )
+
+    if home.public.getboolean('settings', 'hvac_auto'):
+      ran = False
+      until = setTime.strftime("%H:%M")
+      # check if any one is home
+      for section in home.public.sections():
+        if section == "people_home":
+          for person, value in home.public.items(section):
+            if value == 'yes' and not ran:
+              ran = True
+              # someone is home, Check HVAC profiles
+              logging.debug(person+' home, checking if AWAY profile')
+              if current_profile == 'away':
+                # set hvac to home for 15 minutes
+                if hvac.set_current_profile(until,'home'):
+                  if not hvac.pushConfig():
+                    logging.error('pushConfig Fail')
+                else:
+                  logging.error('set profile Fail')
+
+
+      # if ran is false, then no one is home, check profiles
+      if not ran:
+        logging.debug('nobody home, checking for test')
+        if hold_time < setTime.time():
+          # set hvac to home for 15 minutes
+          if hvac.set_current_profile(until,'away'):
+            if not hvac.pushConfig():
+              logging.error('pushConfig Fail')
+          else:
+              logging.error('set profile Fail')
 
 
   end = datetime.datetime.now()
