@@ -327,9 +327,9 @@ def main(argv):
       home.public.set('profile_current', profile+'_htsp', hvac.get_zone_activity_htsp(zone, id))
 
     # get the vacation data too
-#    home.public.set('profile_current','vacmaxt', hvac.get_vacmaxt())
-#    home.public.set('profile_current','vacmint', hvac.get_vacmint())
-#    home.public.set('profile_current','vacfan', hvac.get_vacfan())
+    home.public.set('profile_current','vacmaxt', hvac.get_vacmaxt())
+    home.public.set('profile_current','vacmint', hvac.get_vacmint())
+    home.public.set('profile_current','vacfan', hvac.get_vacfan())
 
     # find if hvac has a wake profile actively set and set it to be inline with global morning
     for period in range(0,5):
