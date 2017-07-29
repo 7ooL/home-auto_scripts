@@ -248,19 +248,26 @@ class Home(object):
     logging.debug('myhouse.getWeather: END')
     return json_objects
 
-  def getDVRToday(self):
-    logging.debug('myhouse.getDVRtoday')
-    showlist= {}
+  def pullDVRList(self):
     api_url='http://192.168.1.250:6544/Dvr/GetUpcomingList?'
-    now = datetime.datetime.now()
-    today = now.strftime('%Y-%m-%d')
-    from_zone = tz.gettz('UTC')
-    to_zone = tz.gettz('America/New_York')
     r = requests.get(api_url)
     if r.status_code == 200:
         with open("upcomingPrograms.xml", 'wb') as f:
             for chunk in r:
                 f.write(chunk)
+
+  # today = 0, tomorrow = 1, next = 2 so on , max like 18
+  def getDVRshows(self, day_num):
+    logging.debug('START')
+    showlist= {}
+
+    now = datetime.datetime.now()
+    dayAdjust = now + timedelta(days=day_num)
+    target = dayAdjust.strftime('%Y-%m-%d')
+
+
+    from_zone = tz.gettz('UTC')
+    to_zone = tz.gettz('America/New_York')
     root = ET.parse("upcomingPrograms.xml").getroot()
     for programlist in root.iter('ProgramList'):
         for program in programlist.iter('Programs'):
@@ -269,7 +276,7 @@ class Home(object):
                 showStart = show.find('StartTime').text
                 utc = datetime.datetime.strptime(showStart, '%Y-%m-%dT%H:%M:%SZ')
                 utc = utc.replace(tzinfo=from_zone)
-                if  utc.astimezone(to_zone).strftime('%Y-%m-%d') == today:
+                if  utc.astimezone(to_zone).strftime('%Y-%m-%d') == target:
                     starttime = utc.astimezone(to_zone).strftime('%H:%M:%S')
                     title = show.find('Title').text
                     subtitle = show.find('SubTitle').text
@@ -278,103 +285,9 @@ class Home(object):
                         status =  entry.find('Status').text
                     oneshow = {'starttime':starttime, 'title':title, 'subtitle':subtitle, 'RecordedID':recordID, 'Status':status}
 		    showlist['show_'+str(x)] = oneshow
-                    logging.debug('myhouse.getDVRToday: found: '+str(oneshow['title']))
+                    logging.debug('found: '+str(oneshow['title']))
                     x=x+1
-    logging.debug('myhouse.getDVRToday: END')
+    logging.debug('END')
     return json.dumps(showlist)
 
 
-
-#  def getHVACmode(self):
-#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/mode'
-#    r = requests.get(api_url)
-#    json_str = json.dumps(r.json())
-#    json_objects = json.loads(json_str)
-#    logging.debug('myhouse.getHVACmode: END')
-#    return json_objects['data']
-
-#  def getHVACvacaData(self):
-#    logging.debug('myhouse.getHVACvacaData')
-#    d = {}
-#    vacaData = [ 'vacmaxt', 'vacmint', 'vacfan' ]
-#    for setting in vacaData:
-#      api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/'+setting
-#      r = requests.get(api_url)
-#      json_str = json.dumps(r.json())
-#      json_objects = json.loads(json_str)
-#      d[setting] = json_objects['data']
-#    logging.debug('myhouse.getHVACvacaData: END')
-#    return d
-
-#  def getHVACzonedata(self):
-#    logging.debug('myhouse.getHVACzonedata')
-#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/zones'
-#    try:
-#      r = requests.get(api_url)
-#    except:
-#      logging.error('myhouse.getHVACzonedata: request error')
-#      return "Error"
-#    else:
-#      if 'error' in r.text:
-#        logging.error(r.text)
-#        return "Error";
-#      json_str = json.dumps(r.json())
-#      json_objects = json.loads(json_str)
-#      todayNum = (int(datetime.datetime.today().weekday())+1)
-#      logging.debug('myhouse.getHVACzonedata: END')
-#      return json_objects
-
-#  def getHVACstatus(self):
-#    logging.debug('myhouse.getHVACstatus')
-#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/status.json'
-#    try:
-#      r = requests.get(api_url)
-#    except:
-#      logging.error('myhouse.getHVACstatus: request error')
-#      return "Error"
-#    else:
-#      if 'error' in r.text:
-#        logging.error(r.text)
-#        return "Error";
-#      json_str = json.dumps(r.json())
-#      json_objects = json.loads(json_str)
-#      logging.debug('myhouse.getHVACstatus: END')
-#      return json_objects
-
-
-#  def setHVACprofile(self, until, profile):
-#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/1/hold?activity='+profile+'&until="'+until+'"'
-#    current_activity = public.get('hvac_current', 'currentActivity')
-#    if current_activity !=  profile :
-#      logging.info('setting '+profile)
-#    with open(r'/home/host/home_auto_scripts/public.ini', 'wb') as configfile:
-#      public.write(configfile)
-#    r = requests.get(api_url)
-#    logging.debug(r)
-#    logging.debug('END')
-
-#  def setHVACzonedata(self, payload):
-#    logging.debug('myhouse.setHVACzonedata')
-#    api_url='http://'+str(hvacIP)+':'+str(hvacPort)+'/api/config/zones'
-#    payload = lights[1]
-#    r = requests.put(api_url, data=json.dumps(payload))
-#    logging.info(r.text)
-
-#  def setHVACmanual(self, temp):
-#    ct = float(public.get('hvac_current', 'rt'))
-#    temp = float(temp)
-#    if ct > temp:
-#      logging.debug('myhouse.setHVACmanual: '+str(ct)+" > "+str(temp))
-#      clsp = temp
-#      htsp = temp - 3
-#    elif ct < temp:
-#      logging.debug('myhouse.setHVACmanual: '+str(ct)+" < "+str(temp))
-#      clsp = temp + 3
-#      htsp = temp 
-#    else:
-#      clsp = temp
-#      htsp = temp
-#    logging.info('myhouse.setHVACmanual: temp:'+str(temp)+' clsp:'+str(clsp)+' htsp:'+str(htsp))
-#    api_url = 'http://'+str(hvacIP)+':'+str(hvacPort)+'/api/1/activity/manual?clsp='+str(clsp)+'&htsp='+str(htsp)
-#    r = requests.get(api_url)
-#    logging.debug(r)

@@ -275,7 +275,9 @@ def main(argv):
   # Pull todays TV shows #
   ########################
 
-  home.public.set('extra', 'upcoming_shows', home.getDVRToday())
+  home.pullDVRList()
+  for x in range(0,3):
+    home.public.set('dvr', str(x)+'_shows', home.getDVRshows(x))
 
   ########################
   # Pull Current Weather #
@@ -339,7 +341,9 @@ def main(argv):
         if hvac_Morning != newMorning:
           hvac.set_zone_program_day_period_time(zone, day, period, newMorning.strftime('%H:%M'))
           # make the hvac change
-          hvac.pushConfig()
+          if not hvac.pushConfig():
+            logging.error('pushConfig failed')
+
 
   #########################
   # save any new settings #

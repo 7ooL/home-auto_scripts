@@ -9,12 +9,54 @@ def main(argv):
   logging.debug('Running hvac-auto script')
 
   home = myhouse.Home()
+  zone = int(home.private.get('hvac', 'zone'))
 
   hvacIP = home.private.get('hvac', 'ip')
   hvacPort = home.private.get('hvac', 'port')
   hvacFile = home.private.get('hvac', 'file')
   hvacStatus = home.private.get('hvac', 'status')
   hvac = pyInfinitude.pyInfinitude.infinitude(hvacIP,hvacPort,hvacFile, hvacStatus)
+
+  if home.public.get('hvac_current', 'updating') == 'yes':
+    logging.debug('updating was yes')
+    file = open('/var/www/html/home-auto/hvac/hvac_hold.txt','r')
+    words = file.readline()
+    file.close()
+
+    line = words.split(",")
+
+    cd = line[0]
+    temp = line[1]
+    until = line[2]
+
+    #  set HVAC manual temp
+    ct = float(home.public.get('hvac_current', 'rt'))
+    temp = float(temp)
+    if ct > temp:
+      clsp = temp
+      htsp = (temp - 3)
+      logging.debug(str(ct)+' > '+str(temp)+' htsp-3')
+    elif ct < temp:
+      clsp = (temp + 3)
+      htsp = temp
+      logging.debug(str(ct)+" < "+str(temp)+' clsp+3')
+    else:
+      clsp = temp
+      htsp = temp
+
+    logging.debug('temp: '+str(temp)+' until: '+str(until))
+
+    # update manual profile clsp and htsp
+    # manual is ID:4
+    hvac.pullConfig()
+    time.sleep(1)
+    hvac.set_zone_activity_clsp(zone,4,clsp)
+    hvac.set_zone_activity_htsp(zone,4,htsp)
+    hvac.set_zone_otmr(zone,until)
+    hvac.set_zone_holdActivity(zone,'manual')
+    hvac.set_zone_hold(zone,'on')
+    time.sleep(1)
+    hvac.pushConfig()
 
   # pull and set current hvac conditions
   prev_humid = home.public.get('hvac_current', 'humid')
@@ -24,7 +66,6 @@ def main(argv):
   if not hvac.pullStatus():
     logging.error('pullStatus Fail')
   else:
-    zone = int(home.private.get('hvac', 'zone'))
     home.public.set('hvac_current', "rt", hvac.get_current_zone_rt(zone)) # current temp
     home.public.set('hvac_current', "rh", hvac.get_current_zone_rh(zone)) # current humdiity
     home.public.set('hvac_current', "currentActivity", hvac.get_current_zone_currentActivity(zone))
@@ -55,7 +96,7 @@ def main(argv):
       logging.info('profile status change: '+prev_profile+' to '+current_profile)
 
     # setTime allows HVAC to be set ahead so not to undo itself
-    setTime = datetime.datetime.strptime( (now + datetime.timedelta(minutes=3)).strftime("%H:%M"), '%H:%M')
+    setTime = datetime.datetime.strptime( (now + datetime.timedelta(minutes=2)).strftime("%H:%M"), '%H:%M')
     hold_time = home.public.get('hvac_current','hold_time')
 
     if hold_time == "[{}]" :
@@ -67,7 +108,6 @@ def main(argv):
 
     if home.public.getboolean('settings', 'hvac_auto'):
       ran = False
-      until = setTime.strftime("%H:%M")
       # check if any one is home
       for section in home.public.sections():
         if section == "people_home":
@@ -77,12 +117,12 @@ def main(argv):
               # someone is home, Check HVAC profiles
               logging.debug(person+' home, checking if AWAY profile')
               if current_profile == 'away':
-                # set hvac to home for 15 minutes
-                if hvac.set_current_profile(until,'home'):
-                  if not hvac.pushConfig():
-                    logging.error('pushConfig Fail')
-                else:
-                  logging.error('set profile Fail')
+                # take hold off, defaulting back to per schedule
+                hvac.pullConfig()
+                time.sleep(1)
+                hvac.set_zone_hold(zone,'off')
+                time.sleep(1)
+                hvac.pushConfig()
 
 
       # if ran is false, then no one is home, check profiles
@@ -90,12 +130,15 @@ def main(argv):
         logging.debug('nobody home, checking for test')
         if hold_time < setTime.time():
           # set hvac to home for 15 minutes
-          if hvac.set_current_profile(until,'away'):
-            if not hvac.pushConfig():
-              logging.error('pushConfig Fail')
-          else:
-              logging.error('set profile Fail')
-
+          dt = now + datetime.timedelta(minutes=2)
+          newHold = dt.replace(minute=0, second=0) + datetime.timedelta(minutes=(dt.minute//15+1)*15)
+          hvac.pullConfig()
+          time.sleep(1)
+          hvac.set_zone_holdActivity(zone,'away')
+          hvac.set_zone_otmr(zone,newHold.strftime("%H:%M"))
+          hvac.set_zone_hold(zone,'on')
+          time.sleep(1)
+          hvac.pushConfig()
 
   end = datetime.datetime.now()
   logging.debug('finished '+str(end-now))
