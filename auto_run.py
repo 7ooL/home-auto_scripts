@@ -7,6 +7,7 @@ from decimal import Decimal
 
 
 def triggerSceneChange (whichtag, whichScene):
+  logging.info(str(whichtag)+'_'+str(whichScene))
   cs = home.public.get('auto','currentscene')
   home.public.set('auto','currentscene', str(whichtag)+'_'+str(whichScene))
   logging.debug('current scene set to: '+str(whichtag)+'_'+str(whichScene))
@@ -22,7 +23,6 @@ def triggerSceneChange (whichtag, whichScene):
   home.setTransTimeOfScene(home.private.get('Scenes', str(whichtag)+'_'+str(whichScene)), home.public.get('auto', str(whichtag)+'_'+str(whichScene)+'_trans_time'))
   time.sleep(.2)
   home.playScene(home.private.get('Scenes', str(whichtag)+'_'+str(whichScene)),home.private.get('Groups','main_floor'))
-
   # set the transition time for the current scene back to quick on the hue bridge
 
   # this keeps making them trigger fast and not respecting the setrasition time, try using that fucntion after play, or a time delay before this
@@ -103,30 +103,8 @@ def main(argv):
   # 18000 = 30 minutes
   # 27000 = 45 minutes
 
-  # define all morning times based off global morning value
-  gm = home.public.get('global','global_morning')
-  global_Morning = datetime.datetime.strptime(gm, '%H:%M:%S')
-
-  # make the morning triggers 30 minutes before global to allow fades
-  newMorning = (global_Morning - datetime.timedelta(minutes=30)).time()
-  # check and set hvac wake timer in hvac section below
-
-  # check and set morning lights
-  lm = home.public.get('auto','morning_1_on_time')
-  if lm != 'null':
-    light_Morning = datetime.datetime.strptime(lm, '%H:%M:%S').time()
-    if newMorning != light_Morning:
-      # set light scene morning 
-      home.public.set('auto','morning_1_on_time', newMorning)
-      home.saveSettings()
-
-  # check and set morning light alarm clock
-  wm = home.public.get('wakeup_schedule','localtime').split("T",1)[1]
-  if wm != 'null':
-    wake_Morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
-    if newMorning != wake_Morning:
-      # set bedroom wake schedule 
-      home.setLightScheduleTime(1,newMorning)
+  # Monday is 0 and Sunday is 6.
+  today = now.today().weekday()
 
   # check and see if you are on vacation and configure
   if home.public.getboolean('settings', 'vacation'):
@@ -257,6 +235,37 @@ def main(argv):
     logging.debug('autorun is not enabled')
 
 
+  ###########################
+  # global morning settings #
+  ###########################
+
+  # define all morning times based off global morning value
+  gm = home.public.get('mornings', str(today)+'_morning')
+  global_Morning = datetime.datetime.strptime(gm, '%H:%M:%S')
+
+  # make the morning triggers 30 minutes before global to allow fades
+  newMorning = (global_Morning - datetime.timedelta(minutes=30)).time()
+
+  # HVAC settings set below for wake and home
+  # make the home profile trigger 1.5hrs after morning
+  newHome = (global_Morning + datetime.timedelta(hours=1, minutes=30)).time()
+  # check and set morning lights
+  lm = home.public.get('auto','morning_1_on_time')
+  if lm != 'null':
+    light_Morning = datetime.datetime.strptime(lm, '%H:%M:%S').time()
+    if newMorning != light_Morning:
+      # set light scene morning 
+      home.public.set('auto','morning_1_on_time', newMorning)
+      home.saveSettings()
+
+  # check and set morning light alarm clock
+  wm = home.public.get('wakeup_schedule','localtime').split("T",1)[1]
+  if wm != 'null':
+    wake_Morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
+    if newMorning != wake_Morning:
+      # set bedroom wake schedule 
+      home.setLightScheduleTime(1,newMorning)
+
   ######################
   # Pull hue schedules #
   ######################
@@ -269,14 +278,20 @@ def main(argv):
   # Pull KEVO Status #
   ####################
 
+  prevLock = home.public.get('lock', 'status')
   home.public.set('lock', 'status', home.kevo("status"))
+  home.saveSettings()
+  currentLock = home.public.get('lock', 'status')
+  if prevLock != currentLock:
+    logging.info('Lock changed from '+prevLock+' to '+currentLock)
 
-  ########################
-  # Pull todays TV shows #
-  ########################
+
+  ############################
+  # Pull TV shows for 7 days #
+  ############################
 
   home.pullDVRList()
-  for x in range(0,3):
+  for x in range(0,8):
     home.public.set('dvr', str(x)+'_shows', home.getDVRshows(x))
 
   ########################
@@ -302,23 +317,21 @@ def main(argv):
     home.public.set('hvac','status','ok')
 
     zone = int(home.private.get('hvac', 'zone'))
-    # adjust days of week num to allign with carrier and infinitude numbering
-    day = (int(datetime.datetime.today().weekday())+1)
-    if day == 7:
-      day = 0
 
-    # clear out todays schedule, do this after the queries are made so it is faster
-    for x in range(0,5):
-      home.public.set('hvac', "event_"+str(x)+"_on_time", 'null')
-      home.public.set('hvac', "event_"+str(x)+"_activity", 'null')
+    # adjust days of week num to allign with carrier and infinitude numbering
+    for day in range(0,7):
+      # nullify each value because if there is no value it will be blank
+      for period in range(0,5):
+        home.public.set('hvac', "day_"+str(day)+"_event_"+str(period)+"_on_time", 'null')
+        home.public.set('hvac', "day_"+str(day)+"_event_"+str(period)+"_activity", 'null')
+
+      # pull out all hvac activity and times for schedule, insert it into config file
+        if hvac.get_zone_program_day_period_enabled(zone, day, period) == 'on':
+          home.public.set('hvac', "day_"+str(day)+"_event_"+str(period)+"_on_time", hvac.get_zone_program_day_period_time(zone, day, period)) 
+          home.public.set('hvac', "day_"+str(day)+"_event_"+str(period)+"_activity", hvac.get_zone_program_day_period_activity(zone, day, period)) 
+
     # get the HVAC mode
     home.public.set('hvac','mode', hvac.get_mode());
-
-    # pull out today's hvac activity and times for schedule, insert it into config file
-    for period in range(0,5):
-      if hvac.get_zone_program_day_period_enabled(zone, day, period) == 'on':
-        home.public.set('hvac', "event_"+str(period)+"_on_time", hvac.get_zone_program_day_period_time(zone, day, period)) 
-        home.public.set('hvac', "event_"+str(period)+"_activity", hvac.get_zone_program_day_period_activity(zone, day, period)) 
 
     # pull out clsp and htsp for each profile name
     # id: 0 = home, 1 = away, 2 = sleep, 3 = wake, 4 = manual
@@ -334,15 +347,34 @@ def main(argv):
     home.public.set('profile_current','vacfan', hvac.get_vacfan())
 
     # find if hvac has a wake profile actively set and set it to be inline with global morning
+    # today only
+    day = (int(datetime.datetime.today().weekday())+1)
+    change=False
+    if day == 7:
+      day = 0
     for period in range(0,5):
-      if home.public.get('hvac', 'event_'+str(period)+'_activity') == 'wake':
-        hm = home.public.get('hvac', 'event_'+str(period)+'_on_time')
+      if home.public.get('hvac', 'day_'+str(day)+'_event_'+str(period)+'_activity') == 'wake':
+        hm = home.public.get('hvac', 'day_'+str(day)+'_event_'+str(period)+'_on_time')
         hvac_Morning = datetime.datetime.strptime(hm, '%H:%M').time()
         if hvac_Morning != newMorning:
+          logging.info("Adjusting WAKE profile to "+str(newMorning)+' d:'+str(day))
           hvac.set_zone_program_day_period_time(zone, day, period, newMorning.strftime('%H:%M'))
+          change=True
+
+    # check and set todays home profile to be after wake
+    for period in range(0,5):
+      if home.public.get('hvac', 'day_'+str(day)+'_event_'+str(period)+'_activity') == 'home':
+        hm = home.public.get('hvac', 'day_'+str(day)+'_event_'+str(period)+'_on_time')
+        hvac_home = datetime.datetime.strptime(hm, '%H:%M').time()
+        if hvac_home != newHome:
+          logging.info("Adjusting HOME profile to "+str(newHome)+' d:'+str(day))
+          hvac.set_zone_program_day_period_time(zone, day, period, newHome.strftime('%H:%M'))
           # make the hvac change
-          if not hvac.pushConfig():
-            logging.error('pushConfig failed')
+          change=True
+
+    if change:
+      if not hvac.pushConfig():
+        logging.error('pushConfig failed')
 
 
   #########################

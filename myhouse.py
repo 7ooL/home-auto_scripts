@@ -49,14 +49,14 @@ class Home(object):
       return Door.returnLockInfo()
     elif command == "lock":
       Door.lockLock()
-      logging.info(command+' Door')
+      logging.debug(command+' Door')
       return "check"
     elif command == "unlock":
       Door.unlockLock()
-      logging.info(command+' Door')
+      logging.debug(command+' Door')
       return "check"
     else:
-      logging.info(command+' Door')
+      logging.error(command+' Door')
       return "error"
 
 
@@ -98,7 +98,7 @@ class Home(object):
   def playScene(self, sid, gid):
     for key, value in Home.private.items('Scenes'):
       if value == sid:
-        logging.info(str(key)+' '+str(value))
+        logging.debug(str(key)+' '+str(value))
     # dealing with all lights, use group 0
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
@@ -176,7 +176,7 @@ class Home(object):
     logging.debug('saveLightState: tempName='+tempName)
     payload = {'name':tempName, "storelightstate": True} 
     r = requests.put(api_url, data=json.dumps(payload))
-    logging.info(r.text)
+    logging.debug(r.text)
 
   def getLightSchedule (self, id):
     # saves the current light state of the lights in the scene
@@ -194,7 +194,7 @@ class Home(object):
     api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
     payload = payload = {'status': status} 
     r = requests.put(api_url, data=json.dumps(payload))
-    logging.info(r.text)
+    logging.debug(r.text)
     logging.debug('myhouse.setLightSchedules: END')
 
   def setLightScheduleTime (self, id, time):
@@ -203,7 +203,7 @@ class Home(object):
     api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
     payload = payload = {'localtime': "W127/T"+str(time)} 
     r = requests.put(api_url, data=json.dumps(payload))
-    logging.info(r.text)
+    logging.debug(r.text)
     logging.debug('END')
 
   # not being used any more
@@ -228,7 +228,7 @@ class Home(object):
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
     payload = {'lights':lightList, "storelightstate": True}
     r = requests.put(api_url, data=json.dumps(payload))
-    logging.info(r.text)
+    logging.debug(r.text)
     if 'error' in r.text:
       logging.error(r.text)
     logging.debug('END')

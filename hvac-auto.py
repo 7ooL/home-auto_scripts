@@ -131,13 +131,14 @@ def main(argv):
         if hold_time < setTime.time():
           # set hvac to home for 15 minutes
           dt = now + datetime.timedelta(minutes=2)
-          newHold = dt.replace(minute=0, second=0) + datetime.timedelta(minutes=(dt.minute//15+1)*15)
+          newHold = dt.replace(minute=0, second=0) + datetime.timedelta(hours=2, minutes=(dt.minute//15+1)*15)
           hvac.pullConfig()
           time.sleep(1)
           hvac.set_zone_holdActivity(zone,'away')
           hvac.set_zone_otmr(zone,newHold.strftime("%H:%M"))
           hvac.set_zone_hold(zone,'on')
           time.sleep(1)
+          logging.info('Set AWAY profile until '+str(newHold))
           hvac.pushConfig()
 
   end = datetime.datetime.now()
