@@ -186,6 +186,7 @@ class Home(object):
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
     logging.debug('END')
+
     return json_objects
 
   def setLightScheduleStatus (self, id, status):
@@ -248,7 +249,7 @@ class Home(object):
     logging.debug('myhouse.getWeather: END')
     return json_objects
 
-  def pullDVRList(self):
+  def pullDVRupcoming(self):
     api_url='http://192.168.1.250:6544/Dvr/GetUpcomingList?'
     r = requests.get(api_url)
     if r.status_code == 200:
@@ -256,8 +257,16 @@ class Home(object):
             for chunk in r:
                 f.write(chunk)
 
+  def pullDVRrecorded(self):
+    api_url='http://192.168.1.250:6544/Dvr/GetRecordedList?Count=10&Descending=true'
+    r = requests.get(api_url)
+    if r.status_code == 200:
+        with open("recordedPrograms.xml", 'wb') as f:
+            for chunk in r:
+                f.write(chunk)
+
   # today = 0, tomorrow = 1, next = 2 so on , max like 18
-  def getDVRshows(self, day_num):
+  def getDVRshows(self, day_num, file):
     logging.debug('START')
     showlist= {}
 
@@ -268,7 +277,7 @@ class Home(object):
 
     from_zone = tz.gettz('UTC')
     to_zone = tz.gettz('America/New_York')
-    root = ET.parse("upcomingPrograms.xml").getroot()
+    root = ET.parse(file).getroot()
     for programlist in root.iter('ProgramList'):
         for program in programlist.iter('Programs'):
             x=1

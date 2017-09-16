@@ -290,9 +290,13 @@ def main(argv):
   # Pull TV shows for 7 days #
   ############################
 
-  home.pullDVRList()
+  home.pullDVRupcoming()
   for x in range(0,8):
-    home.public.set('dvr', str(x)+'_shows', home.getDVRshows(x))
+    home.public.set('dvr', str(x)+'_shows', home.getDVRshows(x, 'upcomingPrograms.xml'))
+
+  home.pullDVRrecorded()
+  home.public.set('dvrRecorded', 'shows', home.getDVRshows(0, 'recordedPrograms.xml'))
+
 
   ########################
   # Pull Current Weather #
