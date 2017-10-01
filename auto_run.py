@@ -1,5 +1,5 @@
 import time, datetime
-import sys, getopt
+import subprocess, sys, getopt
 import myhouse
 import pyInfinitude.pyInfinitude
 import logging
@@ -160,6 +160,21 @@ def main(argv):
           home.groupLightsOn(0)
           triggerSceneChange('vaca', 1)
 
+
+    #####################
+    # LAVA LAMP CONTROL # 
+    ll_on = str(home.public.get('wemo', 'll_switch_on_time')).split(':')
+    ll_off = str(home.public.get('wemo', 'll_switch_off_time')).split(':')
+    # if vacation mode is off check the time
+    if not home.public.getboolean('settings', 'vacation'):
+      if now.replace(hour=int(ll_on[0]), minute=int(ll_on[1]), second=int(ll_on[2])) <= now <= now.replace(hour=int(ll_on[0]), minute=int(ll_on[1])+10, second=int(ll_on[2])):
+        proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" on'], stdout=subprocess.PIPE, shell=True ) 
+        (out, err) = proc.communicate()
+      if now.replace(hour=int(ll_off[0]), minute=int(ll_off[1])-10, second=int(ll_off[2])) <= now <= now.replace(hour=int(ll_off[0]), minute=int(ll_off[1]), second=int(ll_off[2])):
+        proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" off'], stdout=subprocess.PIPE, shell=True ) 
+        (out, err) = proc.communicate()
+
+
     ################
     # MORNING MODE #
     # if morning scene is enabled
@@ -287,6 +302,18 @@ def main(argv):
   if prevLock != currentLock:
     logging.info('Lock changed from '+prevLock+' to '+currentLock)
 
+  ####################
+  # Pull Wemo Status #
+  ####################
+
+  prevLL = home.public.get('wemo', 'll_status')
+  proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" status'], stdout=subprocess.PIPE, shell=True ) 
+  (out, err) = proc.communicate()
+  home.public.set('wemo', 'll_status', out )
+  home.saveSettings()
+  currentLL = home.public.get('wemo', 'll_status')
+  if prevLL != currentLL:
+    logging.info('Lava Lamp changed from '+prevLL+' to '+currentLL)
 
   ############################
   # Pull TV shows for 7 days #
@@ -294,10 +321,10 @@ def main(argv):
 
   home.pullDVRupcoming()
   for x in range(0,8):
-    home.public.set('dvr', str(x)+'_shows', home.getDVRshows(x, 'upcomingPrograms.xml'))
+    home.public.set('dvr', str(x)+'_shows', home.getDVRshows(x, home.upFile))
 
   home.pullDVRrecorded()
-  home.public.set('dvrRecorded', 'shows', home.getDVRshows(0, 'recordedPrograms.xml'))
+  home.public.set('dvrRecorded', 'shows', home.getDVRshows(0, home.recFile))
 
 
   ########################
@@ -397,8 +424,8 @@ if __name__ == "__main__":
 
   hvacIP = home.private.get('hvac', 'ip')
   hvacPort = home.private.get('hvac', 'port')
-  hvacFile = home.private.get('hvac', 'file')
-  hvacStatusFile = home.private.get('hvac', 'status')
+  hvacFile = '/home/host/home_auto_scripts/support/'+home.private.get('hvac', 'file')
+  hvacStatusFile = '/home/host/home_auto_scripts/support/'+home.private.get('hvac', 'status')
   hvac = pyInfinitude.pyInfinitude.infinitude(hvacIP,hvacPort,hvacFile,hvacStatusFile)
 
   # this allows you to pass in a time for testing ./script <hour> <min>

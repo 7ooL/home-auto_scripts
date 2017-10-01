@@ -51,6 +51,10 @@ def main(argv):
   mainfloor = home.private.get('Groups','main_floor')
   cdclock = home.private.get('Groups','count_down_clock')
   time.sleep(1)
+
+  # turn off lava lamp
+  os.system('wemo switch "lava lamp" off')
+
   # set all counters to blue 
   home.setCountdownLights( cdclock , "blue", False)
   time.sleep(2)

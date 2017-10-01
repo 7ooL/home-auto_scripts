@@ -13,8 +13,8 @@ def main(argv):
 
   hvacIP = home.private.get('hvac', 'ip')
   hvacPort = home.private.get('hvac', 'port')
-  hvacFile = home.private.get('hvac', 'file')
-  hvacStatus = home.private.get('hvac', 'status')
+  hvacFile = '/home/host/home_auto_scripts/support/'+home.private.get('hvac', 'file')
+  hvacStatus = '/home/host/home_auto_scripts/support/'+home.private.get('hvac', 'status')
   hvac = pyInfinitude.pyInfinitude.infinitude(hvacIP,hvacPort,hvacFile, hvacStatus)
 
   if home.public.get('hvac_current', 'updating') == 'yes':

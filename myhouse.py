@@ -31,6 +31,9 @@ class Home(object):
   hvacIP = private.get('hvac', 'ip')
   hvacPort = private.get('hvac', 'port')
 
+  recFile = '/home/host/home_auto_scripts/support/'+private.get('dvr', 'recFile')
+  upFile = '/home/host/home_auto_scripts/support/'+private.get('dvr', 'upFile')
+
   def saveSettings(self):
     with open(r'/home/host/home_auto_scripts/public.ini', 'wb') as configfile:
       Home.public.write(configfile)
@@ -253,7 +256,7 @@ class Home(object):
     api_url='http://192.168.1.250:6544/Dvr/GetUpcomingList?'
     r = requests.get(api_url)
     if r.status_code == 200:
-        with open("upcomingPrograms.xml", 'wb') as f:
+        with open(Home.upFile, 'wb') as f:
             for chunk in r:
                 f.write(chunk)
 
@@ -261,7 +264,7 @@ class Home(object):
     api_url='http://192.168.1.250:6544/Dvr/GetRecordedList?Count=10&Descending=true'
     r = requests.get(api_url)
     if r.status_code == 200:
-        with open("recordedPrograms.xml", 'wb') as f:
+        with open(Home.recFile, 'wb') as f:
             for chunk in r:
                 f.write(chunk)
 
