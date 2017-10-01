@@ -13,12 +13,16 @@ def main(argv):
 
   run='True'
   # check and see if any one is home, if they are dont change anthing
-  for section in home.public.sections():
-    if section == "people_home":
-      for person, value in home.public.items(section):
-        if value == 'yes':
-          run=False
-          logging.debug(person+' already home')
+
+# comment out this 10/1/2017
+# if any one comes home set the home scene. this may be helpful with more than one person
+
+#  for section in home.public.sections():
+#    if section == "people_home":
+#      for person, value in home.public.items(section):
+#        if value == 'yes':
+#          run=False
+#          logging.debug(person+' already home')
 
   # set the person who triggered the script as home
   if os.path.isfile(arriveFile):

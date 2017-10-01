@@ -167,6 +167,8 @@ def main(argv):
       if home.public.getboolean('settings', 'morning'):
         if now.replace(hour=int(st_morn[0]), minute=int(st_morn[1]), second=int(st_morn[2])) <= now <= now.replace(hour=int(st_day[0]), minute=int(st_day[1]), second=int(st_day[2])) :
           triggerSceneChange('morn', 1)
+          # if morning mode is enaabled, check if wake is on if so turn on the bedroom wake
+          home.setLightScheduleStatus(1,"enabled")
       else:
         # if morning mode is disabled also turn off the bedroom wake scene
         home.setLightScheduleStatus(1,"disabled")
@@ -225,12 +227,12 @@ def main(argv):
 
       # if its past the vacation off time turn off the lights
       if home.public.getboolean('settings', 'vacation') and now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])) <= now:
-        if cs == 'scene_5':    
+        if cs == 'scene_5':
           logging.info('vacation mode enabled, turning lights off')
-          home.groupLightsOff(0)      
+          home.groupLightsOff(0)
           home.public.set('auto','currentscene', 'null')
 
-  #end auto run  
+  #end auto run
   else:
     logging.debug('autorun is not enabled')
 
