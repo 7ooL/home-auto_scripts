@@ -149,18 +149,20 @@ class Home(object):
   def setCountdownLights (self, group, color, alert):
     logging.debug('group:'+str(group))
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+group+'/action'
+
     if color == "blue":
-#blue      hue=47125
-      hue=47125 
+      hue=47125 #blue
       transTime=30
     else:
-      hue=64978
+      hue=64978 #red
       transTime=10
+
     payload = {'on': True, 'bri': 254, 'hue': hue, 'sat': 254, 'transitiontime': transTime}
     r = requests.put(api_url, data=json.dumps(payload))
     logging.debug(r.text)
     if 'error' in r.text:
       logging.error(r.text)
+
     if alert:
       time.sleep(.1)
       payload = {'on': True, 'bri': 254, 'hue': 64978, 'sat': 254, 'alert': "select"}
@@ -170,6 +172,18 @@ class Home(object):
         logging.error(r.text)
     time.sleep(1)
     logging.debug('END')
+
+  def blinkGroup ( self, group):
+    logging.debug('group:'+str(group))
+    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+group+'/action'
+    payload = {'on': True, 'alert': "select"}
+    r = requests.put(api_url, data=json.dumps(payload))
+    logging.debug(r.text)
+    if 'error' in r.text:
+      logging.error(r.text)
+    time.sleep(1)
+    logging.debug('END')
+
 
   def saveLightState (self, sid):
     # saves the current light state of the lights in the scene

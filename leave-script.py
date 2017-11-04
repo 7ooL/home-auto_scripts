@@ -20,6 +20,7 @@ def main(argv):
       logging.info('marking '+s+' as not home')
       home.public.set("people_home", s,"no")
       home.saveSettings()
+      home.blinkGroup( home.private.get('Groups','count_down_clock') )
 
   # check and see if anyone is home, if they are dont run actions
   for section in home.public.sections():

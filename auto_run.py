@@ -309,7 +309,7 @@ def main(argv):
   prevLL = home.public.get('wemo', 'll_status')
   proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" status'], stdout=subprocess.PIPE, shell=True ) 
   (out, err) = proc.communicate()
-  home.public.set('wemo', 'll_status', out )
+  home.public.set('wemo', 'll_status', out.rstrip('\n') )
   home.saveSettings()
   currentLL = home.public.get('wemo', 'll_status')
   if prevLL != currentLL:
