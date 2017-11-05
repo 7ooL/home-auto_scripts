@@ -13,6 +13,7 @@ def triggerSceneChange (whichtag, whichScene):
   logging.debug('current scene set to: '+str(whichtag)+'_'+str(whichScene))
   home.public.set('auto', 'previousscene', cs)
   logging.debug('previous scene set to: '+cs)
+  home.saveSettings()
 
   # if vacation mode is on trigger the first scene of the evening
   if whichtag == 'vaca':
