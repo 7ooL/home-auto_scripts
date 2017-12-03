@@ -55,8 +55,8 @@ def main(argv):
   # turn off lava lamp
   os.system('wemo switch "lava lamp" off')
 
-  # set all counters to blue 
-  home.setCountdownLights( cdclock , "blue", False)
+  # set all counters to default 
+  home.setCountdownLights( cdclock , "default", False)
   time.sleep(2)
   # counter 1
   home.singleLightCountdown("16", 100)

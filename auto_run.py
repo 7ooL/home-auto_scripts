@@ -34,18 +34,18 @@ def calculateScenes(howmany):
 
   # if calculate is called and the time is before default start, use default start time to calculate
   if len(sys.argv) > 1:
-    fst = home.private.get('time', 'first_time').split(':')
+    fst = home.private.get('Time', 'first_time').split(':')
     calcNow = now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2]))
   else:
     calcNow = now
 
   # read in last scene trigger (lst) time in from config file
-  lst = home.private.get('time', 'last_time').split(':')
+  lst = home.private.get('Time', 'last_time').split(':')
   diff = (datetime.datetime.today().replace(hour=int(lst[0]), minute=int(lst[1]), second=int(lst[2]))) - calcNow
   # time to next scene (ttns)
   ttns=diff/howmany
   # transition time (tt) should be 60% of the ttns, and then converted into 100's of mili seconds
-  tp = (float(home.private.get('time', 'trans_percent'))/100)
+  tp = (float(home.private.get('Time', 'trans_percent'))/100)
   tt = int(((int(ttns.total_seconds())*tp)*1000)/100)
 
   if howmany == 4:
@@ -112,16 +112,16 @@ def main(argv):
     home.public.set('settings','morning', 'off')
     home.public.set('settings','autorun', 'on')
     home.public.set('settings','evening', 'on')
-    v_on = str(home.private.get('time', 'vaca_on_time')).split(':')
-    v_off = str(home.private.get('time', 'vaca_off_time')).split(':')
-    home.private.set('time','last_time', str(home.private.get('time', 'vaca_off_time')))
+    v_on = str(home.private.get('Time', 'vaca_on_time')).split(':')
+    v_off = str(home.private.get('Time', 'vaca_off_time')).split(':')
+    home.private.set('Time','last_time', str(home.private.get('Time', 'vaca_off_time')))
   else:
     # turned off because this kept making morning come on when it was turned off
     #home.public.set('settings','morning', 'on') 
-    home.private.set('time','last_time', home.private.get('time','default_last_time'))
+    home.private.set('Time','last_time', home.private.get('Time','default_last_time'))
 
   # set evening start and end times to default if before first start time, so it auto is on before then it works
-  fst = home.private.get('time', 'first_time').split(':')
+  fst = home.private.get('Time', 'first_time').split(':')
   if now <= now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2])):
     logging.debug('Default settings applied '+str(now)+' <= '+ str(now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2]))))
     home.public.set('settings','evening', 'on')
@@ -150,7 +150,7 @@ def main(argv):
     st_3 = str(home.public.get('auto', 'scene_3_on_time')).split(':')
     st_4 = str(home.public.get('auto', 'scene_4_on_time')).split(':')
     st_5 = str(home.public.get('auto', 'scene_5_on_time')).split(':')
-    ls_bed = str(home.private.get('time', 'last_time')).split(':')
+    ls_bed = str(home.private.get('Time', 'last_time')).split(':')
 
     #################
     # VACATION MODE #

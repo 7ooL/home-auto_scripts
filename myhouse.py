@@ -152,12 +152,19 @@ class Home(object):
 
     if color == "blue":
       hue=47125 #blue
+      sat=254
       transTime=30
-    else:
+    if color == "red": 
       hue=64978 #red
+      sat=254
       transTime=10
+    else:
+      hue=14956 #default color
+      sat=140
+      transTime=30
 
-    payload = {'on': True, 'bri': 254, 'hue': hue, 'sat': 254, 'transitiontime': transTime}
+
+    payload = {'on': True, 'bri': 254, 'hue': hue, 'sat': sat, 'transitiontime': transTime}
     r = requests.put(api_url, data=json.dumps(payload))
     logging.debug(r.text)
     if 'error' in r.text:
