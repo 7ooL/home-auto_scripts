@@ -47,6 +47,17 @@ def main(argv):
     home.singleLightCountdown("20", 100)
     # turn off all lights, group 0
     home.groupLightsOff(0)
+ 
+    os.system('wemo switch "wemo im home" off')
+
+    # lock the door if necessary
+    lockState = home.public.get('lock', 'status')
+
+    # if the house is unlocked, then lock the door
+    if lockState == "Unlocked":
+       home.kevo("lock")
+       home.public.set('lock', 'status', "Locked")
+       home.saveSettings()
 
   # remove file that triggered script
   if os.path.isfile(leaveFile):

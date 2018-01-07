@@ -17,7 +17,7 @@ def triggerSceneChange (whichtag, whichScene):
 
   # if vacation mode is on trigger the first scene of the evening
   if whichtag == 'vaca':
-    whichScene = 1
+    whichScene = '1'
     whichtag = 'scene' 
 
   # actually activate scene with transition time
@@ -28,6 +28,20 @@ def triggerSceneChange (whichtag, whichScene):
 
   # this keeps making them trigger fast and not respecting the setrasition time, try using that fucntion after play, or a time delay before this
   #  home.SetQuickTrans(str(whichtag)+'_'+str(whichScene))
+
+  #####################
+  # WEMO Home CONTROL #
+  # device that is on when ever some one is home except for bed 
+  # check and see if any one is home, if they are dont change ant$
+  if not home.public.getboolean('wemo','wemo_home_status'):
+    for section in home.public.sections():
+      if section == "people_home":
+        for person, value in home.public.items(section):
+          if value == 'yes':
+            proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" on'], stdout=subprocess.PIPE, shell=True ) 
+            (out, err) = proc.communicate()
+            logging.info('wemo im home turned on')
+
 
 
 def calculateScenes(howmany):
@@ -98,6 +112,8 @@ def calculateScenes(howmany):
 
 def main(argv):
   logging.debug('Running Main()')
+
+
   cs = home.public.get('auto','currentscene')
   # if auto run is off calculate transition times
   # 3,600,000/100 = 36000ms = 1 hour
@@ -107,6 +123,30 @@ def main(argv):
   # Monday is 0 and Sunday is 6.
   today = now.today().weekday()
 
+
+  ####################
+  # Pull Wemo Status #
+  # lava lamp
+  prevLL = home.public.get('wemo', 'll_status')
+  proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" status'], stdout=subprocess.PIPE, shell=True ) 
+  (out, err) = proc.communicate()
+  home.public.set('wemo', 'll_status', out.rstrip('\n') )
+  home.saveSettings()
+  currentLL = home.public.get('wemo', 'll_status')
+  if prevLL != currentLL:
+    logging.info('Lava Lamp changed from '+prevLL+' to '+currentLL)
+  # wemo im home
+  prevHome = home.public.get('wemo', 'wemo_home_status')
+  proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" status'], stdout=subprocess.PIPE, shell=True ) 
+  (out, err) = proc.communicate()
+  home.public.set('wemo', 'wemo_home_status', out.rstrip('\n') )
+  home.saveSettings()
+  currentHome = home.public.get('wemo', 'wemo_home_status')
+  if prevHome != currentHome:
+    logging.info('Wemo im home changed from '+prevHome+' to '+currentHome)
+
+  ###############################
+  # Configure Vacation Settings #
   # check and see if you are on vacation and configure
   if home.public.getboolean('settings', 'vacation'):
     home.public.set('settings','morning', 'off')
@@ -120,6 +160,8 @@ def main(argv):
     #home.public.set('settings','morning', 'on') 
     home.private.set('Time','last_time', home.private.get('Time','default_last_time'))
 
+  ##############################
+  # Configure Default Settings #
   # set evening start and end times to default if before first start time, so it auto is on before then it works
   fst = home.private.get('Time', 'first_time').split(':')
   if now <= now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2])):
@@ -169,11 +211,22 @@ def main(argv):
     # if vacation mode is off check the time
     if not home.public.getboolean('settings', 'vacation'):
       if now.replace(hour=int(ll_on[0]), minute=int(ll_on[1]), second=int(ll_on[2])) <= now <= now.replace(hour=int(ll_on[0]), minute=int(ll_on[1])+10, second=int(ll_on[2])):
-        proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" on'], stdout=subprocess.PIPE, shell=True ) 
+        proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" on'], stdout=subprocess.PIPE, shell=True )
         (out, err) = proc.communicate()
+        logging.info('lava lamp turned on')
       if now.replace(hour=int(ll_off[0]), minute=int(ll_off[1])-10, second=int(ll_off[2])) <= now <= now.replace(hour=int(ll_off[0]), minute=int(ll_off[1]), second=int(ll_off[2])):
-        proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" off'], stdout=subprocess.PIPE, shell=True ) 
+        proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" off'], stdout=subprocess.PIPE, shell=True )
         (out, err) = proc.communicate()
+        logging.info('lava lamp turned off')
+
+    #######################
+    # Hoime Light CONTROL # 
+    # if bed mode is on turn off the wemo home light
+    if home.public.getboolean('settings', 'bed'):
+      if home.public.getboolean('wemo','wemo_home_status'):
+        proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" off'], stdout=subprocess.PIPE, shell=True )
+        (out, err) = proc.communicate()
+        logging.info('wemo im home turned off')
 
 
     ################
@@ -303,19 +356,6 @@ def main(argv):
   if prevLock != currentLock:
     logging.info('Lock changed from '+prevLock+' to '+currentLock)
 
-  ####################
-  # Pull Wemo Status #
-  ####################
-
-  prevLL = home.public.get('wemo', 'll_status')
-  proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" status'], stdout=subprocess.PIPE, shell=True ) 
-  (out, err) = proc.communicate()
-  home.public.set('wemo', 'll_status', out.rstrip('\n') )
-  home.saveSettings()
-  currentLL = home.public.get('wemo', 'll_status')
-  if prevLL != currentLL:
-    logging.info('Lava Lamp changed from '+prevLL+' to '+currentLL)
-
   ############################
   # Pull TV shows for 7 days #
   ############################
@@ -333,12 +373,13 @@ def main(argv):
   ########################
 
   weatherdata = home.getWeather();
-  home.public.set('weather', 'weather', weatherdata['current_observation']['weather']) #mostly cloudy
-  home.public.set('weather', 'icon', weatherdata['current_observation']['icon'])
-  home.public.set('weather', 'icon_url', weatherdata['current_observation']['icon_url'])
-  home.public.set('weather', 'oh', weatherdata['current_observation']['relative_humidity'].replace('%',''))
-  home.public.set('weather', 'ot', weatherdata['current_observation']['temp_f'])
-  home.public.set('weather', 'forecast_url', weatherdata['current_observation']['forecast_url'])
+  if 'current_observation' in weatherdata:
+    home.public.set('weather', 'weather', weatherdata['current_observation']['weather']) #mostly cloudy
+    home.public.set('weather', 'icon', weatherdata['current_observation']['icon'])
+    home.public.set('weather', 'icon_url', weatherdata['current_observation']['icon_url'])
+    home.public.set('weather', 'oh', weatherdata['current_observation']['relative_humidity'].replace('%',''))
+    home.public.set('weather', 'ot', weatherdata['current_observation']['temp_f'])
+    home.public.set('weather', 'forecast_url', weatherdata['current_observation']['forecast_url'])
 
   ##################
   # Pull HVAC Data #
