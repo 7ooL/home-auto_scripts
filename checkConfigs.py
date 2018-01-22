@@ -54,7 +54,7 @@ options = ['default_last_time','first_time','trans_percent','last_time','vaca_on
 doTest(file,section,options)
 
 section = 'Scenes'
-options = ['scene_1','scene_2','scene_3','scene_4','scene_5','morn_1','daytime_1','daytime_2','bed_1','movie','home','temp_scene']
+options = ['scene_1','scene_2','scene_3','scene_4','scene_5','morn_1','daytime_1','daytime_2','bed_1','movie','home','temp_scene','clean_master', 'clean_main']
 doTest(file,section,options)
 
 section = 'Groups'
@@ -73,6 +73,9 @@ section = 'Movie'
 options = ['settings']
 doTest(file,section,options)
 
+section = 'IFTTT'
+options = ['dir']
+doTest(file,section,options)
 
 
 file = home.public
@@ -86,15 +89,15 @@ options = ['person_name']
 doTest(file,section,options)
 
 section = 'auto'
-options = ['currentscene','previousscene','morning_1_on_time','daytime_1_on_time','scene_1_on_time','scene_2_on_time','scene_3_on_time','scene_4_on_time','scene_5_on_time','scene_1_trans_time','scene_2_trans_time','scene_3_trans_time','scene_4_trans_time','scene_5_trans_time','morn_1_trans_time','daytime_1_trans_time','scene_test_trans_time']
+options = ['currentscene','previousscene','morning_1_on_time','daytime_1_on_time','scene_1_on_time','scene_2_on_time','scene_3_on_time','scene_4_on_time','scene_5_on_time','scene_1_trans_time','scene_2_trans_time','scene_3_trans_time','scene_4_trans_time','scene_5_trans_time','morn_1_trans_time','daytime_1_trans_time','scene_test_trans_time','vaca_1_trans_time']
 doTest(file,section,options)
 
 section = 'wemo'
-options = ['ll_switch_on_time','ll_switch_off_time','ll_status']
+options = ['ll_switch_on_time','ll_switch_off_time','ll_status','wemo_home_status']
 doTest(file,section,options)
 
 section = 'settings'
-options = ['autorun','morning','hvac_auto','vacation','movie','evening','bed']
+options = ['autorun','morning','hvac_auto','vacation','movie','evening','bed','clean']
 doTest(file,section,options)
 
 section = 'wakeup_schedule'

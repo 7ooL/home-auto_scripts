@@ -4,7 +4,7 @@ import myhouse
 import pyInfinitude.pyInfinitude
 import logging
 from decimal import Decimal
-
+from subprocess import call
 
 def triggerSceneChange (whichtag, whichScene):
   logging.info(str(whichtag)+'_'+str(whichScene))
@@ -123,6 +123,9 @@ def main(argv):
   # Monday is 0 and Sunday is 6.
   today = now.today().weekday()
 
+  ################################
+  # Clean up trigger directories #
+  call(["find", home.private.get('IFTTT','dir'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
 
   ####################
   # Pull Wemo Status #
