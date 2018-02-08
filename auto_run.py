@@ -211,6 +211,9 @@ def main(argv):
     # LAVA LAMP CONTROL # 
     ll_on = str(home.public.get('wemo', 'll_switch_on_time')).split(':')
     ll_off = str(home.public.get('wemo', 'll_switch_off_time')).split(':')
+    # times must be between 0..59, by doing a -10 it can cause error 
+    if int(ll_off[1]) < 10:
+       ll_off[1] = 60 + int(ll_off[1])
     # if vacation mode is off check the time
     if not home.public.getboolean('settings', 'vacation'):
       if now.replace(hour=int(ll_on[0]), minute=int(ll_on[1]), second=int(ll_on[2])) <= now <= now.replace(hour=int(ll_on[0]), minute=int(ll_on[1])+10, second=int(ll_on[2])):
@@ -353,8 +356,12 @@ def main(argv):
   ####################
 
   prevLock = home.public.get('lock', 'status')
-  home.public.set('lock', 'status', home.kevo("status"))
-  home.saveSettings()
+  try:
+    home.public.set('lock', 'status', home.kevo("status"))
+    home.saveSettings()
+  except: 
+    logging.error('Lock ststus set error')
+ 
   currentLock = home.public.get('lock', 'status')
   if prevLock != currentLock:
     logging.info('Lock changed from '+prevLock+' to '+currentLock)

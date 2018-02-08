@@ -1,5 +1,5 @@
 import myhouse
-import os, sys, ast, datetime
+import os, sys, ast, datetime, subprocess
 import logging
 
 def main(argv):
@@ -47,6 +47,11 @@ def main(argv):
     logging.debug('currenty scene set to movie') 
     home.setTransTimeOfScene( home.private.get('Scenes', 'movie'), 100)
     home.playScene( home.private.get('Scenes', 'movie'), home.private.get('Groups', 'main_floor'))
+    proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" off'], stdout=subprocess.PIPE, shell=True )
+    (out, err) = proc.communicate()
+    logging.info('wemo im home turned off')
+
+
 
   home.saveSettings()
 
