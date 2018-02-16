@@ -360,7 +360,7 @@ def main(argv):
     home.public.set('lock', 'status', home.kevo("status"))
     home.saveSettings()
   except: 
-    logging.error('Lock ststus set error')
+    logging.error('Lock status set error')
  
   currentLock = home.public.get('lock', 'status')
   if prevLock != currentLock:

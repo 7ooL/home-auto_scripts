@@ -40,6 +40,16 @@ class Home(object):
     with open(r'/home/host/home_auto_scripts/private.ini', 'wb') as configfile:
       Home.private.write(configfile)
 
+  def putCommand(self, api_url, payload):
+    try:
+      r = requests.put(api_url, data=json.dumps(payload))
+      logging.debug(r.text)
+      if 'error' in r.text:
+        logging.error(r.text)
+    except:
+      logging.error(payload)
+    logging.debug('END')
+
   def kevo(self, command):
     logging.debug('command:'+str(command))
     username = Home.private.get('Kevo','username')
@@ -62,7 +72,6 @@ class Home(object):
       logging.error(command+' Door')
       return "error"
 
-
   def setTransTimeOfScene(self, sid, transtime):
     logging.debug('SID:'+str(sid)+' transtime:'+str(transtime))
     # get the current light states in the scene to update transition times
@@ -72,13 +81,10 @@ class Home(object):
     json_objects = json.loads(json_str)
     for lights in json_objects['lightstates'].iteritems():
       lights[1]['transitiontime'] = int(transtime)
-      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
+      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid+'/lights/'+lights[0]+'/state'
       payload = lights[1]
-      r = requests.put(api_url, data=json.dumps(payload))
-      logging.debug(r.text)
-      if 'error' in r.text:
-        logging.error(r.text)
-    logging.debug('END')
+      self.putCommand(api_url, payload)
+      logging.debug('END')
 
 
   def setBringhtOfScene(self, sid, bri):
@@ -90,12 +96,9 @@ class Home(object):
     json_objects = json.loads(json_str)
     for lights in json_objects['lightstates'].iteritems():
       lights[1]['bri'] = int(bri)
-      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
+      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid+'/lights/'+lights[0]+'/state'
       payload = lights[1]
-      r = requests.put(api_url, data=json.dumps(payload))
-      logging.debug(r.text)
-      if 'error' in r.text:
-        logging.error(r.text)
+      self.putCommand(api_url, payload)
     logging.debug('END')
 
   def playScene(self, sid, gid):
@@ -106,10 +109,7 @@ class Home(object):
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
     payload = {'scene': sid}
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
-    if 'error' in r.text:
-      logging.error(r.text)
+    self.putCommand(api_url, payload)
     logging.debug('END')
 
   def groupLightsOff (self, gid):
@@ -118,10 +118,8 @@ class Home(object):
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
     payload = {'on': False,'transitiontime': 100}
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
-    if 'error' in r.text:
-      logging.error(r.text)
+    self.putCommand(api_url, payload)
+    logging.debug("END")
 
   def groupLightsOn (self, gid):
     logging.debug('GID:'+str(gid))
@@ -129,20 +127,15 @@ class Home(object):
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
     payload = {'on': True,'transitiontime': 100}
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
-    if 'error' in r.text:
-      logging.error(r.text)
-    logging.debug('END')
+    self.putCommand(api_url, payload)
+    logging.debug("END")
+
 
   def singleLightCountdown(self, light, transTime ):
     logging.debug('light:'+str(light)+' transtime:'+str(transTime))
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/lights/'+light+'/state'
     payload = {'on': False,'transitiontime': transTime}
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
-    if 'error' in r.text:
-      logging.error(r.text)
+    self.putCommand(api_url, payload)
     time.sleep(transTime/10)
     logging.debug('END')
 
@@ -165,18 +158,12 @@ class Home(object):
 
 
     payload = {'on': True, 'bri': 254, 'hue': hue, 'sat': sat, 'transitiontime': transTime}
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
-    if 'error' in r.text:
-      logging.error(r.text)
+    self.putCommand(api_url, payload)
 
     if alert:
       time.sleep(.1)
       payload = {'on': True, 'bri': 254, 'hue': 64978, 'sat': 254, 'alert': "select"}
-      r = requests.put(api_url, data=json.dumps(payload))
-      logging.debug(r.text)
-      if 'error' in r.text:
-        logging.error(r.text)
+      self.putCommand(api_url, payload)
     time.sleep(1)
     logging.debug('END')
 
@@ -184,13 +171,9 @@ class Home(object):
     logging.debug('group:'+str(group))
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+group+'/action'
     payload = {'on': True, 'alert': "select"}
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
-    if 'error' in r.text:
-      logging.error(r.text)
+    self.putCommand(api_url, payload)
     time.sleep(1)
     logging.debug('END')
-
 
   def saveLightState (self, sid):
     # saves the current light state of the lights in the scene
@@ -199,8 +182,7 @@ class Home(object):
     tempName = 'saveState_'+time.strftime('%a-%H-%M-%S')
     logging.debug('saveLightState: tempName='+tempName)
     payload = {'name':tempName, "storelightstate": True} 
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
+    self.putCommand(api_url, payload)
 
   def getLightSchedule (self, id):
     # saves the current light state of the lights in the scene
@@ -210,7 +192,6 @@ class Home(object):
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
     logging.debug('END')
-
     return json_objects
 
   def setLightScheduleStatus (self, id, status):
@@ -218,17 +199,15 @@ class Home(object):
     logging.debug('id:'+str(id)+' status:'+str(status))
     api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
     payload = payload = {'status': status} 
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
-    logging.debug('myhouse.setLightSchedules: END')
+    self.putCommand(api_url, payload)
+    logging.debug('END')
 
   def setLightScheduleTime (self, id, time):
     # saves the current light state of the lights in the scene
     logging.debug('id:'+str(id)+' time:'+str(time))
     api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
     payload = payload = {'localtime': "W127/T"+str(time)} 
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
+    self.putCommand(api_url, payload)
     logging.debug('END')
 
   # not being used any more
@@ -245,17 +224,11 @@ class Home(object):
       else:
         payload = {'on': False}
       api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/lights/'+str(light['light'])+'/state/'
-      r = requests.put(api_url, data=json.dumps(payload))
-      logging.debug(r.text)
-      if 'error' in r.text:
-        logging.error(r.text)
+      self.putCommand(api_url, payload)
     # update movie temp scene with the blubs that should be on
     api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
     payload = {'lights':lightList, "storelightstate": True}
-    r = requests.put(api_url, data=json.dumps(payload))
-    logging.debug(r.text)
-    if 'error' in r.text:
-      logging.error(r.text)
+    self.putCommand(api_url, payload)
     logging.debug('END')
 
   def SetQuickTrans(self, scene):
