@@ -48,7 +48,6 @@ class Home(object):
         logging.error(r.text)
     except:
       logging.error(payload)
-    logging.debug('END')
 
   def kevo(self, command):
     logging.debug('command:'+str(command))
