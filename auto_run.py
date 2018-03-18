@@ -13,6 +13,14 @@ def triggerSceneChange (whichtag, whichScene):
   logging.debug('current scene set to: '+str(whichtag)+'_'+str(whichScene))
   home.public.set('auto', 'previousscene', cs)
   logging.debug('previous scene set to: '+cs)
+
+  # set any temp scenes to off
+  for section in home.public.sections():
+    if section == "light_scenes":
+      for scene, value in home.public.items(section):
+        if value == 'on':
+          home.public.set('light_scenes','off')
+
   home.saveSettings()
 
   # if vacation mode is on trigger the first scene of the evening
@@ -212,8 +220,8 @@ def main(argv):
     ll_on = str(home.public.get('wemo', 'll_switch_on_time')).split(':')
     ll_off = str(home.public.get('wemo', 'll_switch_off_time')).split(':')
     # times must be between 0..59, by doing a -10 it can cause error 
-    if int(ll_off[1]) < 10:
-       ll_off[1] = 60 + int(ll_off[1])
+    if int(ll_off[1]) < 11:
+       ll_off[1] = int(60 + int(ll_off[1]))
     # if vacation mode is off check the time
     if not home.public.getboolean('settings', 'vacation'):
       if now.replace(hour=int(ll_on[0]), minute=int(ll_on[1]), second=int(ll_on[2])) <= now <= now.replace(hour=int(ll_on[0]), minute=int(ll_on[1])+10, second=int(ll_on[2])):
@@ -242,7 +250,7 @@ def main(argv):
       if home.public.getboolean('settings', 'morning'):
         if now.replace(hour=int(st_morn[0]), minute=int(st_morn[1]), second=int(st_morn[2])) <= now <= now.replace(hour=int(st_day[0]), minute=int(st_day[1]), second=int(st_day[2])) :
           triggerSceneChange('morn', 1)
-          # if morning mode is enaabled, check if wake is on if so turn on the bedroom wake
+          # if morning mode is enabled, check if wake is on if so turn on the bedroom wake
           home.setLightScheduleStatus(1,"enabled")
       else:
         # if morning mode is disabled also turn off the bedroom wake scene
@@ -263,7 +271,7 @@ def main(argv):
       # stage 1
       if st_1 != ['null']:
         if now.replace(hour=int(st_1[0]), minute=int(st_1[1]), second=int(st_1[2])) <= now <= now.replace(hour=int(st_2[0]), minute=int(st_2[1]), second=int(st_2[2])):
-          if cs == 'null' or cs == 'scene_vaca' or cs == 'daytime_1' or cs == 'home':
+          if cs == 'null' or cs == 'vaca_1' or cs == 'daytime_1' or cs == 'home':
             calculateScenes(4)
             triggerSceneChange('scene', 1)
 
@@ -302,10 +310,10 @@ def main(argv):
 
       # if its past the vacation off time turn off the lights
       if home.public.getboolean('settings', 'vacation') and now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])) <= now:
-        if cs == 'scene_5':
+        if cs == 'scene_5' or cs == 'vaca_1':
           logging.info('vacation mode enabled, turning lights off')
           home.groupLightsOff(0)
-          home.public.set('auto','currentscene', 'null')
+          home.public.set('auto','currentscene', 'vaca_off')
 
   #end auto run
   else:
@@ -383,13 +391,14 @@ def main(argv):
   ########################
 
   weatherdata = home.getWeather();
-  if 'current_observation' in weatherdata:
-    home.public.set('weather', 'weather', weatherdata['current_observation']['weather']) #mostly cloudy
-    home.public.set('weather', 'icon', weatherdata['current_observation']['icon'])
-    home.public.set('weather', 'icon_url', weatherdata['current_observation']['icon_url'])
-    home.public.set('weather', 'oh', weatherdata['current_observation']['relative_humidity'].replace('%',''))
-    home.public.set('weather', 'ot', weatherdata['current_observation']['temp_f'])
-    home.public.set('weather', 'forecast_url', weatherdata['current_observation']['forecast_url'])
+  if weatherdata != "error":
+    if 'current_observation' in weatherdata:
+      home.public.set('weather', 'weather', weatherdata['current_observation']['weather']) #mostly cloudy
+      home.public.set('weather', 'icon', weatherdata['current_observation']['icon'])
+      home.public.set('weather', 'icon_url', weatherdata['current_observation']['icon_url'])
+      home.public.set('weather', 'oh', weatherdata['current_observation']['relative_humidity'].replace('%',''))
+      home.public.set('weather', 'ot', weatherdata['current_observation']['temp_f'])
+      home.public.set('weather', 'forecast_url', weatherdata['current_observation']['forecast_url'])
 
   ##################
   # Pull HVAC Data #

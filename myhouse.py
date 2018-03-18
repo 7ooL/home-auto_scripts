@@ -239,11 +239,15 @@ class Home(object):
   def getWeather(self):
     logging.debug('myhouse.getWeather')
     api_url='http://api.wunderground.com/api/9a995caa21869c46/conditions/q/20170.json'
-    r = requests.get(api_url)
-    json_str = json.dumps(r.json())
-    json_objects = json.loads(json_str)
-    logging.debug('myhouse.getWeather: END')
-    return json_objects
+    try:
+      r = requests.get(api_url)
+      json_str = json.dumps(r.json())
+      json_objects = json.loads(json_str)
+      logging.debug('myhouse.getWeather: END')
+      return json_objects
+    except:
+      logging.error('could not get weather')
+      return "error"
 
   def pullDVRupcoming(self):
     api_url='http://192.168.1.250:6544/Dvr/GetUpcomingList?'
