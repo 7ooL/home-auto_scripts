@@ -47,6 +47,7 @@ class Home(object):
       if 'error' in r.text:
         logging.error(r.text)
     except:
+      logging.error(api_url)
       logging.error(payload)
 
   def kevo(self, command):

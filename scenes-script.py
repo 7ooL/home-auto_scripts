@@ -17,15 +17,14 @@ def main(argv):
       current_status = home.public.get('light_scenes',s)
       if current_status == 'on':
         home.public.set("light_scenes", s, 'off')
-        home.playScene(home.private.get('Scenes', 'temp_scene'), home.private.get('Groups', 'main_floor'))
+        home.playScene(home.private.get('Scenes', 'temp_scene'), home.private.get('Groups', s))
       else:
-        logging.info('triggering '+s+' light scene')
+        logging.info('triggering '+s+' scene')
         home.public.set("light_scenes", s, 'on')
         home.saveLightState(home.private.get('Scenes', 'temp_scene'))
 
         # switch case for custom scenes
         home.playScene(home.private.get('Scenes', s), home.private.get('Groups',s))
-        home.public.set('auto', 'currentscene', "null")
 
   # save new settings
   home.saveSettings()

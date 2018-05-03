@@ -19,7 +19,7 @@ def triggerSceneChange (whichtag, whichScene):
     if section == "light_scenes":
       for scene, value in home.public.items(section):
         if value == 'on':
-          home.public.set('light_scenes','off')
+          home.public.set('light_scenes', scene, 'off')
 
   home.saveSettings()
 
@@ -220,8 +220,11 @@ def main(argv):
     ll_on = str(home.public.get('wemo', 'll_switch_on_time')).split(':')
     ll_off = str(home.public.get('wemo', 'll_switch_off_time')).split(':')
     # times must be between 0..59, by doing a -10 it can cause error 
-    if int(ll_off[1]) < 11:
-       ll_off[1] = int(60 + int(ll_off[1]))
+    for i in range(1,3):
+      if int(ll_off[i]) < 11:
+         ll_off[i] = str(49 + int(ll_off[i]))
+      if int(ll_on[i]) < 11:
+         ll_on[i] = str(49 + int(ll_on[i]))
     # if vacation mode is off check the time
     if not home.public.getboolean('settings', 'vacation'):
       if now.replace(hour=int(ll_on[0]), minute=int(ll_on[1]), second=int(ll_on[2])) <= now <= now.replace(hour=int(ll_on[0]), minute=int(ll_on[1])+10, second=int(ll_on[2])):
