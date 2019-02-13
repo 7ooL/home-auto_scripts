@@ -7,7 +7,7 @@ def main(argv):
   now = datetime.datetime.now()
   home = myhouse.Home()
 
-  bedFile = "/home/host/Dropbox/IFTTT/bed/bed.txt" 
+  bedFile = home.private.get('Path','ifttt')+"/bed/bed.txt" 
 
   logging.info('Running bed script')
 

@@ -4,7 +4,7 @@ import os, sys
 import logging
 
 now = datetime.datetime.now()
-leaveFile ="/home/host/Dropbox/IFTTT/leave/leave_home.txt"
+leaveFile = home.private.get('Path','ifttt')+"/leave/leave_home.txt"
 
 def main(argv):
 

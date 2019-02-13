@@ -9,7 +9,7 @@ def main(argv):
 
   logging.debug('Running arrive script')
 
-  arriveFile = "/home/host/Dropbox/IFTTT/arrive/arrive_home.txt"
+  arriveFile = home.private.get('Path','ifttt')+"/arrive/arrive_home.txt"
 
   run=False
 

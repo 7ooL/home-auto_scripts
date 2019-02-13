@@ -9,7 +9,7 @@ def main(argv):
 
   logging.debug('Running movie script')
 
-  movieFile = "/home/host/Dropbox/IFTTT/movie/movie.txt"
+  movieFile = home.private.get('Path','ifttt')+"/movie/movie.txt"
   movieFile2 = "/var/www/html/home-auto/movie/movie.txt"
 
   if home.public.getboolean('settings', 'movie'):

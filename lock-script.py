@@ -7,7 +7,7 @@ def main(argv):
   now = datetime.datetime.now()
   home = myhouse.Home(); 
 
-  lockFile = "/home/host/Dropbox/IFTTT/lock/lock.txt"
+  lockFile = home.private.get('Path','ifttt')+"/lock/lock.txt"
   lockFile2 = "/var/www/html/home-auto/lock/lock.txt"
 
   lockState = home.public.get('lock', 'status')

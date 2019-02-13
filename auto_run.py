@@ -1,7 +1,7 @@
 import time, datetime
 import subprocess, sys, getopt
 import myhouse
-import pyInfinitude.pyInfinitude
+#import pyInfinitude.pyInfinitude
 import logging
 from decimal import Decimal
 from subprocess import call
@@ -136,7 +136,8 @@ def main(argv):
 
   ################################
   # Clean up trigger directories #
-  call(["find", home.private.get('IFTTT','dir'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
+  if home.private.getboolean('Devices', 'ifttt'):
+    call(["find", home.private.get('Path','ifttt'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
 
   ####################
   # Pull Wemo Status #
@@ -145,9 +146,9 @@ def main(argv):
     prevLL = home.public.get('wemo', 'll_status')
     proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" status'], stdout=subprocess.PIPE, shell=True ) 
     (out, err) = proc.communicate()
-    home.public.set('wemo', 'll_status', out.rstrip('\n') )
+    home.public.set('wemo', 'll_status', out.rstrip(b'\n') )
     home.saveSettings()
-    currentLL = home.public.get('wemo', 'll_status')
+    currentLL = str(home.public.get('wemo', 'll_status'))
     if prevLL != currentLL:
       logging.info('Lava Lamp changed from '+prevLL+' to '+currentLL)
   # wemo im home
@@ -155,9 +156,9 @@ def main(argv):
     prevHome = home.public.get('wemo', 'wh_status')
     proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" status'], stdout=subprocess.PIPE, shell=True ) 
     (out, err) = proc.communicate()
-    home.public.set('wemo', 'wh_status', out.rstrip('\n') )
+    home.public.set('wemo', 'wh_status', out.rstrip(b'\n') )
     home.saveSettings()
-    currentHome = home.public.get('wemo', 'wh_status')
+    currentHome = str(home.public.get('wemo', 'wh_status'))
     if prevHome != currentHome:
       logging.info('Wemo im home changed from '+prevHome+' to '+currentHome)
 
@@ -486,8 +487,8 @@ if __name__ == "__main__":
   if home.private.getboolean('Devices', 'hvac'):
     hvacIP = home.private.get('hvac', 'ip')
     hvacPort = home.private.get('hvac', 'port')
-    hvacFile = '/home/host/home_auto_scripts/support/'+home.private.get('hvac', 'file')
-    hvacStatusFile = '/home/host/home_auto_scripts/support/'+home.private.get('hvac', 'status')
+    hvacFile = home.private.get('Path','hvac')+"/"+home.private.get('hvac', 'file')
+    hvacStatusFile = home.private.get('Path','hvac')+"/"+home.private.get('hvac', 'status')
     hvac = pyInfinitude.pyInfinitude.infinitude(hvacIP,hvacPort,hvacFile,hvacStatusFile)
 
   # this allows you to pass in a time for testing ./script <hour> <min>

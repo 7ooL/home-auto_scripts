@@ -9,7 +9,7 @@ def main(argv):
 
   logging.debug('Running vacation script') 
 
-  vacationFile = "/home/host/Dropbox/IFTTT/vacation/vacation.txt"
+  vacationFile = home.private.get('Path','ifttt')+"/vacation/vacation.txt"
   vacationFile2 = "/var/www/html/home-auto/vacation/vacation.txt"
 
   home.public.set('settings','autorun', 'on')

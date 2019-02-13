@@ -7,37 +7,40 @@ import xml.etree.ElementTree as ET
 import os
 import sys, getopt
 import ast
-import ConfigParser
-import pyKevo
+import configparser
+#import pyKevo
 import logging
 from logging.config import BaseConfigurator
 from logging.config import fileConfig
 
-logging.config.fileConfig('/home/host/home_auto_scripts/logging.ini')
+# must define using absolute path
+RootPATH = "/home/tc/home-auto_scripts/" 
+logging.config.fileConfig(RootPATH+'logging.ini')
+
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 class Home(object):
 
-  private = ConfigParser.RawConfigParser()
-  private.read('/home/host/home_auto_scripts/private.ini')
+  private = configparser.RawConfigParser()
+  private.read(RootPATH+'private.ini')
 
-  public = ConfigParser.RawConfigParser()
-  public.read('/home/host/home_auto_scripts/public.ini')
+  public = configparser.RawConfigParser()
+  public.read(RootPATH+'public.ini')
 
-  bridgeIP = private.get('Bridge','ip')
-  bridgeUN = private.get('Bridge','username')
+  HueBridgeIP = private.get('HueBridge','ip')
+  HueBridgeUN = private.get('HueBridge','username')
 
   hvacIP = private.get('hvac', 'ip')
   hvacPort = private.get('hvac', 'port')
 
-  recFile = '/home/host/home_auto_scripts/support/'+private.get('dvr', 'recFile')
-  upFile = '/home/host/home_auto_scripts/support/'+private.get('dvr', 'upFile')
+  recFile = private.get('Path','dvr')+'/'+private.get('dvr', 'recFile')
+  upFile =  private.get('Path','dvr')+'/'+private.get('dvr', 'upFile')
 
   def saveSettings(self):
-    with open(r'/home/host/home_auto_scripts/public.ini', 'wb') as configfile:
+    with open(RootPATH+'public.ini', 'w') as configfile:
       Home.public.write(configfile)
-    with open(r'/home/host/home_auto_scripts/private.ini', 'wb') as configfile:
+    with open(RootPATH+'private.ini', 'w') as configfile:
       Home.private.write(configfile)
 
   def putCommand(self, api_url, payload):
@@ -50,38 +53,38 @@ class Home(object):
       logging.error(api_url)
       logging.error(payload)
 
-  def kevo(self, command):
-    logging.debug('command:'+str(command))
-    username = Home.private.get('Kevo','username')
-    password = Home.private.get('Kevo','password')
-    Door = pyKevo.pyKevo(username,password)
-    Door.connect()
-    if command == "status":
-      return Door.lockState()
-    elif command == "info":
-      return Door.returnLockInfo()
-    elif command == "lock":
-      Door.lockLock()
-      logging.debug(command+' Door')
-      return "check"
-    elif command == "unlock":
-      Door.unlockLock()
-      logging.debug(command+' Door')
-      return "check"
-    else:
-      logging.error(command+' Door')
-      return "error"
+#  def kevo(self, command):
+#    logging.debug('command:'+str(command))
+#    username = Home.private.get('Kevo','username')
+#    password = Home.private.get('Kevo','password')
+#    Door = pyKevo.pyKevo(username,password)
+#    Door.connect()
+#    if command == "status":
+#      return Door.lockState()
+#    elif command == "info":
+#      return Door.returnLockInfo()
+#    elif command == "lock":
+#      Door.lockLock()
+#      logging.debug(command+' Door')
+#      return "check"
+#    elif command == "unlock":
+#      Door.unlockLock()
+#      logging.debug(command+' Door')
+#      return "check"
+#    else:
+#      logging.error(command+' Door')
+#      return "error"
 
   def setTransTimeOfScene(self, sid, transtime):
     logging.debug('SID:'+str(sid)+' transtime:'+str(transtime))
     # get the current light states in the scene to update transition times
-    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid
     r = requests.get(api_url)
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
     for lights in json_objects['lightstates'].iteritems():
       lights[1]['transitiontime'] = int(transtime)
-      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid+'/lights/'+lights[0]+'/state'
+      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lights/'+lights[0]+'/state'
       payload = lights[1]
       self.putCommand(api_url, payload)
       logging.debug('END')
@@ -90,13 +93,13 @@ class Home(object):
   def setBringhtOfScene(self, sid, bri):
     logging.debug('SID:'+str(sid)+' bri:'+str(bri))
     # get the current light states in the scene to update transition times
-    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid
     r = requests.get(api_url)
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
     for lights in json_objects['lightstates'].iteritems():
       lights[1]['bri'] = int(bri)
-      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid+'/lights/'+lights[0]+'/state'
+      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lights/'+lights[0]+'/state'
       payload = lights[1]
       self.putCommand(api_url, payload)
     logging.debug('END')
@@ -106,7 +109,7 @@ class Home(object):
       if value == sid:
         logging.debug(str(key)+' '+str(value))
     # dealing with all lights, use group 0
-    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
     payload = {'scene': sid}
     self.putCommand(api_url, payload)
@@ -115,7 +118,7 @@ class Home(object):
   def groupLightsOff (self, gid):
     logging.debug('GID:'+str(gid))
     # dealing with all lights, use group 0
-    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
     payload = {'on': False,'transitiontime': 100}
     self.putCommand(api_url, payload)
@@ -124,7 +127,7 @@ class Home(object):
   def groupLightsOn (self, gid):
     logging.debug('GID:'+str(gid))
     # dealing with all lights, use group 0
-    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+str(gid)+'/action'
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/groups/'+str(gid)+'/action'
     # turn off all the lights in the house with a slow trasition
     payload = {'on': True,'transitiontime': 100}
     self.putCommand(api_url, payload)
@@ -133,7 +136,7 @@ class Home(object):
 
   def singleLightCountdown(self, light, transTime ):
     logging.debug('light:'+str(light)+' transtime:'+str(transTime))
-    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/lights/'+light+'/state'
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/lights/'+light+'/state'
     payload = {'on': False,'transitiontime': transTime}
     self.putCommand(api_url, payload)
     time.sleep(transTime/10)
@@ -141,7 +144,7 @@ class Home(object):
 
   def setCountdownLights (self, group, color, alert):
     logging.debug('group:'+str(group))
-    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+group+'/action'
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/groups/'+group+'/action'
 
     if color == "blue":
       hue=47125 #blue
@@ -169,7 +172,7 @@ class Home(object):
 
   def blinkGroup ( self, group):
     logging.debug('group:'+str(group))
-    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/groups/'+group+'/action'
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/groups/'+group+'/action'
     payload = {'on': True, 'alert': "select"}
     self.putCommand(api_url, payload)
     time.sleep(1)
@@ -178,7 +181,7 @@ class Home(object):
   def saveLightState (self, sid):
     # saves the current light state of the lights in the scene
     logging.debug('sid:'+str(sid))
-    api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
+    api_url = 'http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid
     tempName = 'saveState_'+time.strftime('%a-%H-%M-%S')
     logging.debug('saveLightState: tempName='+tempName)
     payload = {'name':tempName, "storelightstate": True} 
@@ -187,7 +190,7 @@ class Home(object):
   def getLightSchedule (self, id):
     # saves the current light state of the lights in the scene
     logging.debug('id:'+str(id))
-    api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
+    api_url = 'http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/schedules/'+str(id)
     r = requests.get(api_url)
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
@@ -197,7 +200,7 @@ class Home(object):
   def setLightScheduleStatus (self, id, status):
     # saves the current light state of the lights in the scene
     logging.debug('id:'+str(id)+' status:'+str(status))
-    api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
+    api_url = 'http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/schedules/'+str(id)
     payload = payload = {'status': status} 
     self.putCommand(api_url, payload)
     logging.debug('END')
@@ -205,7 +208,7 @@ class Home(object):
   def setLightScheduleTime (self, id, time):
     # saves the current light state of the lights in the scene
     logging.debug('id:'+str(id)+' time:'+str(time))
-    api_url = 'http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/schedules/'+str(id)
+    api_url = 'http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/schedules/'+str(id)
     payload = payload = {'localtime': "W127/T"+str(time)} 
     self.putCommand(api_url, payload)
     logging.debug('END')
@@ -223,10 +226,10 @@ class Home(object):
         lightList.append(light)
       else:
         payload = {'on': False}
-      api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/lights/'+str(light['light'])+'/state/'
+      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/lights/'+str(light['light'])+'/state/'
       self.putCommand(api_url, payload)
     # update movie temp scene with the blubs that should be on
-    api_url='http://'+Home.bridgeIP+'/api/'+Home.bridgeUN+'/scenes/'+sid
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid
     payload = {'lights':lightList, "storelightstate": True}
     self.putCommand(api_url, payload)
     logging.debug('END')
@@ -268,36 +271,35 @@ class Home(object):
 
   # today = 0, tomorrow = 1, next = 2 so on , max like 18
   def getDVRshows(self, day_num, file):
-    logging.debug('START')
-    showlist= {}
+      logging.debug('START')
+      showlist= {}
 
-    now = datetime.datetime.now()
-    dayAdjust = now + timedelta(days=day_num)
-    target = dayAdjust.strftime('%Y-%m-%d')
+      now = datetime.datetime.now()
+      dayAdjust = now + timedelta(days=day_num)
+      target = dayAdjust.strftime('%Y-%m-%d')
 
-
-    from_zone = tz.gettz('UTC')
-    to_zone = tz.gettz('America/New_York')
-    root = ET.parse(file).getroot()
-    for programlist in root.iter('ProgramList'):
-        for program in programlist.iter('Programs'):
-            x=1
-            for show in program.findall('Program'):
-                showStart = show.find('StartTime').text
-                utc = datetime.datetime.strptime(showStart, '%Y-%m-%dT%H:%M:%SZ')
-                utc = utc.replace(tzinfo=from_zone)
-                if  utc.astimezone(to_zone).strftime('%Y-%m-%d') == target:
-                    starttime = utc.astimezone(to_zone).strftime('%H:%M:%S')
-                    title = show.find('Title').text
-                    subtitle = show.find('SubTitle').text
-                    for entry in program.iter('Recording'):
-                        recordID = entry.find('RecordedId').text
-                        status =  entry.find('Status').text
-                    oneshow = {'starttime':starttime, 'title':title, 'subtitle':subtitle, 'RecordedID':recordID, 'Status':status}
-		    showlist['show_'+str(x)] = oneshow
-                    logging.debug('found: '+str(oneshow['title']))
-                    x=x+1
-    logging.debug('END')
-    return json.dumps(showlist)
+      from_zone = tz.gettz('UTC')
+      to_zone = tz.gettz('America/New_York')
+      root = ET.parse(file).getroot()
+      for programlist in root.iter('ProgramList'):
+          for program in programlist.iter('Programs'):
+              x=1
+              for show in program.findall('Program'):
+                  showStart = show.find('StartTime').text
+                  utc = datetime.datetime.strptime(showStart, '%Y-%m-%dT%H:%M:%SZ')
+                  utc = utc.replace(tzinfo=from_zone)
+                  if  utc.astimezone(to_zone).strftime('%Y-%m-%d') == target:
+                      starttime = utc.astimezone(to_zone).strftime('%H:%M:%S')
+                      title = show.find('Title').text
+                      subtitle = show.find('SubTitle').text
+                      for entry in program.iter('Recording'):
+                          recordID = entry.find('RecordedId').text
+                          status =  entry.find('Status').text
+                      oneshow = {'starttime':starttime, 'title':title, 'subtitle':subtitle, 'RecordedID':recordID, 'Status':status}
+                      showlist['show_'+str(x)] = oneshow
+                      logging.debug('found: '+str(oneshow['title']))
+                      x=x+1
+      logging.debug('END')
+      return json.dumps(showlist)
 
 
