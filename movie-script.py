@@ -9,7 +9,7 @@ def main(argv):
 
   logging.debug('Running movie script')
 
-  movieFile = home.private.get('Path','ifttt')+"/movie/movie.txt"
+  movieFile = sys.argv[1]
   movieFile2 = "/var/www/html/home-auto/movie/movie.txt"
 
   if home.public.getboolean('settings', 'movie'):
@@ -66,4 +66,12 @@ def main(argv):
   logging.debug('finished '+str(end-now))
 
 if __name__ == "__main__":
-  main(sys.argv[1:])
+    logging.error("No input file provided")
+  elif not os.path.isfile(sys.argv[1]):
+    logging.error("Input file does not exist")
+  else:
+    with open(sys.argv[1]) as f:
+      if not f.readline().rstrip():
+        logging.error("Input file is empty")
+      else:
+        main(sys.argv[1])

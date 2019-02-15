@@ -49,7 +49,7 @@ def triggerSceneChange (whichtag, whichScene):
           for section in home.public.sections():
             if section == "people_home":
               for person, value in home.public.items(section):
-                if value == 'yes':
+                if value == 'true':
                   proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" on'], stdout=subprocess.PIPE, shell=True ) 
                   (out, err) = proc.communicate()
                   logging.info('wemo im home turned on')
@@ -137,8 +137,8 @@ def main(argv):
 
   ################################
   # Clean up trigger directories #
-  if home.private.getboolean('Devices', 'ifttt'):
-    call(["find", home.private.get('Path','ifttt'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
+#  if home.private.getboolean('Devices', 'ifttt'):
+#    call(["find", home.private.get('Path','ifttt'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
 
   ####################
   # Pull Wemo Status #

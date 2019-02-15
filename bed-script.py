@@ -7,7 +7,7 @@ def main(argv):
   now = datetime.datetime.now()
   home = myhouse.Home()
 
-  bedFile = home.private.get('Path','ifttt')+"/bed/bed.txt" 
+  bedFile = sys.argv[1] 
 
   logging.info('Running bed script')
 
@@ -77,5 +77,13 @@ def main(argv):
   logging.debug('finished '+str(end-now))
 
 if __name__ == "__main__":
-  main(sys.argv[1:])
+    logging.error("No input file provided")
+  elif not os.path.isfile(sys.argv[1]):
+    logging.error("Input file does not exist")
+  else:
+    with open(sys.argv[1]) as f:
+      if not f.readline().rstrip():
+        logging.error("Input file is empty")
+      else:
+        main(sys.argv[1])
 

@@ -15,8 +15,8 @@ from logging.config import fileConfig
 
 # must define using absolute path
 RootPATH = "/home/ha/home-auto_scripts/" 
-logging.config.fileConfig(RootPATH+'logging.ini')
 
+logging.config.fileConfig(RootPATH+'logging.ini', defaults={'logfilename': RootPATH+'home-auto.log'})
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 

@@ -9,7 +9,7 @@ def main(argv):
 
   logging.debug('Running Leave Script')
 
-  leaveFile = home.private.get('Path','ifttt')+"/leave/leave_home.txt"
+  leaveFile = sys.argv[1]
   logging.debug("leaveFile: "+leaveFile)
 
   run='True'
@@ -76,5 +76,15 @@ def main(argv):
   logging.debug('finished '+str(end-now))
 
 if __name__ == "__main__":
-  main(sys.argv[1:])
+
+  if len(sys.argv) == 1:
+    logging.error("No input file provided")
+  elif not os.path.isfile(sys.argv[1]):
+    logging.error("Input file does not exist")
+  else:
+    with open(sys.argv[1]) as f:
+      if not f.readline().rstrip():
+        logging.error("Input file is empty")
+      else:
+        main(sys.argv[1])
 
