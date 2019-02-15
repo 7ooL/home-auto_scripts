@@ -14,7 +14,7 @@ def checkSection(file, section):
 def checkOption(file, section, option, placeHolder):
   if not file.has_option(section,option):
     logging.warning('missing option '+option+' in section '+section)
-    try: 
+    try:
       file.set(section,option,placeHolder)
       logging.info('added missing option '+option+' in section '+section)
     except:
@@ -23,7 +23,7 @@ def checkOption(file, section, option, placeHolder):
 def compareOptions(file,section,options):
   a = list(set(options).symmetric_difference(file.options(section)))
   if a:
-    logging.warning('options not tested for in section '+section)
+    logging.warning('options not tested for in section '+str(file)+':'+section)
     logging.warning(a)
 
 def doTest(file,section,options, placeHolder):
@@ -35,11 +35,11 @@ def doTest(file,section,options, placeHolder):
 
 private = configparser.RawConfigParser()
 private.read('private.ini')
-    
+
 file = private
 
 section = 'Devices'
-options = ['hue','kevo','hvac', 'wemo_ll', 'wemo_wh', 'dvr', 'weather', 'ifttt']
+options = ['hue','kevo','hvac', 'wemo', 'dvr', 'weather', 'ifttt']
 placeHolder='false'
 doTest(file,section,options,placeHolder)
 
@@ -49,8 +49,13 @@ placeHolder='/UNDEFINED/HERE'
 doTest(file,section,options,placeHolder)
 
 section = 'HueBridge'
-options = ['ip','username']
+options = ['ip','username', 'count_down_lights_active']
 placeHolder='UNDEFINED'
+doTest(file,section,options,placeHolder)
+
+section = 'Wemo'
+options = ['wdevice1_active','wdevice2_active', 'wdevice3_active']
+placeHolder='UNDEFINED_DEVICE_NAME'
 doTest(file,section,options,placeHolder)
 
 section = 'Kevo'
@@ -59,18 +64,18 @@ placeHolder='UNDEFINED'
 doTest(file,section,options,placeHolder)
 
 section = 'Time'
-options = ['default_last_time','first_time','trans_percent','last_time','vaca_on_time','vaca_off_time']
+options = ['default_last_time','first_time','# trans_percent is a value between 1-99', 'trans_percent','last_time','vaca_on_time','vaca_off_time']
 placeHolder='00:00:00'
 doTest(file,section,options,placeHolder)
 
 section = 'Scenes'
-options = ['scene_1','scene_2','scene_3','scene_4','scene_5','morn_1','daytime_1','daytime_2','bed_1','movie','home','temp_scene','clean_master', 'clean_main']
-placeHolder='UNDEFINED'
+options = ['scene_1','scene_2','scene_3','scene_4','scene_5','morn_1','daytime_1','daytime_2','bed_1', 'bed_2','movie','home','home_kitchen','home_fireplace','temp_scene','clean_master', 'clean_main', 'office_1', 'office_2', 'office_3', 'office_4', 'office_5', 'office_6', 'office_7', 'basement_chill']
+placeHolder='UNDEFINED_ID'
 doTest(file,section,options,placeHolder)
 
 section = 'Groups'
-options = ['main_floor','master_bedroom', 'count_down_clock']
-placeHolder='UNDEFINED'
+options = ['main_floor','master_bedroom', 'count_down_clock', 'kitchen', 'fireplace', 'movie', 'office']
+placeHolder='UNDEFINED_ID'
 doTest(file,section,options,placeHolder)
 
 section = 'hvac'
@@ -87,7 +92,7 @@ section = 'dvr'
 options = ['recfile','upfile']
 placeHolder='UNDEFINED'
 doTest(file,section,options,placeHolder)
-        
+
 with open(r'private.ini', 'w') as configfile:
     private.write(configfile)
 
@@ -107,7 +112,7 @@ doTest(file,section,options,placeHolder)
 
 section = 'people_home'
 options = ['person_name']
-placeHolder='UNDEFINED'
+placeHolder='true/false'
 doTest(file,section,options,placeHolder)
 
 section = 'auto'
@@ -116,7 +121,7 @@ placeHolder='UNDEFINED'
 doTest(file,section,options,placeHolder)
 
 section = 'wemo'
-options = ['ll_switch_on_time','ll_switch_off_time','ll_status','wemo_home_status']
+options = ['wdevice1_name', 'wdevice1_on_time', 'wdevice1_off_time', 'wdevice1_status', 'wdevice2_name', 'wdevice2_on_time', 'wdevice2_off_time', 'wdevice2_status', 'wdevice3_name', 'wdevice3_on_time', 'wdevice3_off_time', 'wdevice3_status']
 placeHolder='UNDEFINED'
 doTest(file,section,options,placeHolder)
 

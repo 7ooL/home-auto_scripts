@@ -43,15 +43,16 @@ def triggerSceneChange (whichtag, whichScene):
     # WEMO Home CONTROL #
     # device that is on when ever some one is home except for bed 
     # check and see if any one is home, if they are dont change ant$
-    if home.private.getboolean('Devices', 'wemo_wh'):
-      if not home.public.getboolean('wemo','wh_status'):
-        for section in home.public.sections():
-          if section == "people_home":
-            for person, value in home.public.items(section):
-              if value == 'yes':
-                proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" on'], stdout=subprocess.PIPE, shell=True ) 
-                (out, err) = proc.communicate()
-                logging.info('wemo im home turned on')
+    if home.private.getboolean('Devices', 'wemo'):
+      if home.private.getboolean('Weom', 'wdevice2_active'):
+        if not home.public.getboolean('wemo','wdevice2_status'):
+          for section in home.public.sections():
+            if section == "people_home":
+              for person, value in home.public.items(section):
+                if value == 'yes':
+                  proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" on'], stdout=subprocess.PIPE, shell=True ) 
+                  (out, err) = proc.communicate()
+                  logging.info('wemo im home turned on')
 
 
 
@@ -141,40 +142,34 @@ def main(argv):
 
   ####################
   # Pull Wemo Status #
-  # lava lamp
-  if home.private.getboolean('Devices', 'wemo_ll'):
-    prevLL = home.public.get('wemo', 'll_status')
-    proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" status'], stdout=subprocess.PIPE, shell=True ) 
-    (out, err) = proc.communicate()
-    home.public.set('wemo', 'll_status', out.rstrip(b'\n') )
-    home.saveSettings()
-    currentLL = str(home.public.get('wemo', 'll_status'))
-    if prevLL != currentLL:
-      logging.info('Lava Lamp changed from '+prevLL+' to '+currentLL)
-  # wemo im home
-  if home.private.getboolean('Devices', 'wemo_wh'):
-    prevHome = home.public.get('wemo', 'wh_status')
-    proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" status'], stdout=subprocess.PIPE, shell=True ) 
-    (out, err) = proc.communicate()
-    home.public.set('wemo', 'wh_status', out.rstrip(b'\n') )
-    home.saveSettings()
-    currentHome = str(home.public.get('wemo', 'wh_status'))
-    if prevHome != currentHome:
-      logging.info('Wemo im home changed from '+prevHome+' to '+currentHome)
+  if home.private.getboolean('Devices', 'wemo'):
+    for x in range(1,3):
+      x = str(x)
+      if home.private.getboolean('Wemo', 'wdevice'+x+'_active'):
+        pDevice = home.public.get('wemo', 'wdevice'+x+'_status')
+        cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+x+'_name')+'" status'
+        proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
+        (out, err) = proc.communicate()
+        home.public.set('wemo', 'wdevice'+x+'_status', out.rstrip(b'\n') )
+        home.saveSettings()
+        cDevice = str(home.public.get('wemo', 'wdevice'+x+'_status'))
+        if pDevice != cDevice:
+          logging.info(home.public.get('wemo', 'wdevice'+x+'_name')+'changed from '+pDevice+' to '+cDevice)
+
 
   ###############################
   # Configure Vacation Settings #
   # check and see if you are on vacation and configure
   if home.public.getboolean('settings', 'vacation'):
-    home.public.set('settings','morning', 'off')
-    home.public.set('settings','autorun', 'on')
-    home.public.set('settings','evening', 'on')
+    home.public.set('settings','morning', 'false')
+    home.public.set('settings','autorun', 'true')
+    home.public.set('settings','evening', 'true')
     v_on = str(home.private.get('Time', 'vaca_on_time')).split(':')
     v_off = str(home.private.get('Time', 'vaca_off_time')).split(':')
     home.private.set('Time','last_time', str(home.private.get('Time', 'vaca_off_time')))
   else:
     # turned off because this kept making morning come on when it was turned off
-    #home.public.set('settings','morning', 'on') 
+    #home.public.set('settings','morning', 'true') 
     home.private.set('Time','last_time', home.private.get('Time','default_last_time'))
 
   ##############################
@@ -183,8 +178,8 @@ def main(argv):
   fst = home.private.get('Time', 'first_time').split(':')
   if now <= now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2])):
     logging.debug('Default settings applied '+str(now)+' <= '+ str(now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2]))))
-    home.public.set('settings','evening', 'on')
-    home.public.set('settings','bed', 'off')
+    home.public.set('settings','evening', 'true')
+    home.public.set('settings','bed', 'false')
     sys.argv.append("Defaults") #used in claculateSecenes
     calculateScenes(4)
     if cs != 'morn_1' and cs != 'daytime_1' and cs != 'home':
@@ -221,37 +216,42 @@ def main(argv):
           triggerSceneChange('vaca', 1)
 
 
-    #####################
-    # LAVA LAMP CONTROL # 
-    if home.private.getboolean('Devices', 'wemo_ll'):
-      ll_on = str(home.public.get('wemo', 'll_switch_on_time')).split(':')
-      ll_off = str(home.public.get('wemo', 'll_switch_off_time')).split(':')
-      # times must be between 0..59, by doing a -10 it can cause error 
-      for i in range(1,3):
-        if int(ll_off[i]) < 11:
-           ll_off[i] = str(49 + int(ll_off[i]))
-        if int(ll_on[i]) < 11:
-           ll_on[i] = str(49 + int(ll_on[i]))
-      # if vacation mode is off check the time
-      if not home.public.getboolean('settings', 'vacation'):
-        if now.replace(hour=int(ll_on[0]), minute=int(ll_on[1]), second=int(ll_on[2])) <= now <= now.replace(hour=int(ll_on[0]), minute=int(ll_on[1])+10, second=int(ll_on[2])):
-          proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" on'], stdout=subprocess.PIPE, shell=True )
-          (out, err) = proc.communicate()
-          logging.info('lava lamp turned on')
-        if now.replace(hour=int(ll_off[0]), minute=int(ll_off[1])-10, second=int(ll_off[2])) <= now <= now.replace(hour=int(ll_off[0]), minute=int(ll_off[1]), second=int(ll_off[2])):
-          proc = subprocess.Popen(['/usr/local/bin/wemo switch "lava lamp" off'], stdout=subprocess.PIPE, shell=True )
-          (out, err) = proc.communicate()
-          logging.info('lava lamp turned off')
+    ####################################
+    # Wemo Device1 (LAVA LAMP) CONTROL # 
+    if home.private.getboolean('Devices', 'wemo'):
+      if home.private.getboolean('Wemo', 'wdevice1_active'):
+        d1_on = str(home.public.get('wemo', 'wdevice1_on_time')).split(':')
+        d1_off = str(home.public.get('wemo', 'wdevice1_off_time')).split(':')
+        # times must be between 0..59, by doing a -10 it can cause error as it drops below time "0"
+        for i in range(1,3):
+          if int(d1_off[i]) < 11:
+             d1_off[i] = str(49 + int(d1_off[i]))
+          if int(d1_on[i]) < 11:
+             d1_on[i] = str(49 + int(d1_on[i]))
+        # if vacation mode is false check the time
+        if not home.public.getboolean('settings', 'vacation'):
+          if now.replace(hour=int(d1_on[0]), minute=int(d1_on[1]), second=int(d1_on[2])) <= now <= now.replace(hour=int(d1_on[0]), minute=int(d1_on[1])+10, second=int(d1_on[2])):
+            cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice1_name')+ '" on'
+            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+            (out, err) = proc.communicate()
+            logging.info(home.public.get('wemo', 'wdevice1_name')+' turned on')
+          if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
+            cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice1_name')+ '" off'
+            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+            (out, err) = proc.communicate()
+            logging.info(home.public.get('wemo', 'wdevice1_name')+' turned off')
 
     #######################
-    # Home Light CONTROL # 
-    # if bed mode is on turn off the wemo home light
-    if home.private.getboolean('Devices', 'wemo_wh'):
+    # Wemo Device 2 CONTROL # 
+    # if bed mode is on turn off the wemo device 2
+    if home.private.getboolean('Devices', 'wemo'):
       if home.public.getboolean('settings', 'bed'):
-        if home.public.getboolean('wemo','wh_status'):
-          proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" off'], stdout=subprocess.PIPE, shell=True )
-          (out, err) = proc.communicate()
-          logging.info('wemo im home turned off')
+        if home.private.getboolean('Wemo', 'wdevice2_active'):
+          if home.public.getboolean('Wemo',''):
+            cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice2_name')+ '" off'
+            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+            (out, err) = proc.communicate()
+            logging.info(home.public.get('wemo', 'wdevice2_name')+' turned off')
 
 
     ################

@@ -14,7 +14,7 @@ from logging.config import BaseConfigurator
 from logging.config import fileConfig
 
 # must define using absolute path
-RootPATH = "/home/tc/home-auto_scripts/" 
+RootPATH = "/home/ha/home-auto_scripts/" 
 logging.config.fileConfig(RootPATH+'logging.ini')
 
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -53,27 +53,27 @@ class Home(object):
       logging.error(api_url)
       logging.error(payload)
 
-#  def kevo(self, command):
-#    logging.debug('command:'+str(command))
-#    username = Home.private.get('Kevo','username')
-#    password = Home.private.get('Kevo','password')
-#    Door = pyKevo.pyKevo(username,password)
-#    Door.connect()
-#    if command == "status":
-#      return Door.lockState()
-#    elif command == "info":
-#      return Door.returnLockInfo()
-#    elif command == "lock":
-#      Door.lockLock()
-#      logging.debug(command+' Door')
-#      return "check"
-#    elif command == "unlock":
-#      Door.unlockLock()
-#      logging.debug(command+' Door')
-#      return "check"
-#    else:
-#      logging.error(command+' Door')
-#      return "error"
+  def kevo(self, command):
+    logging.debug('command:'+str(command))
+    username = Home.private.get('Kevo','username')
+    password = Home.private.get('Kevo','password')
+    Door = pyKevo.pyKevo(username,password)
+    Door.connect()
+    if command == "status":
+      return Door.lockState()
+    elif command == "info":
+      return Door.returnLockInfo()
+    elif command == "lock":
+      Door.lockLock()
+      logging.debug(command+' Door')
+      return "check"
+    elif command == "unlock":
+      Door.unlockLock()
+      logging.debug(command+' Door')
+      return "check"
+    else:
+      logging.error(command+' Door')
+      return "error"
 
   def setTransTimeOfScene(self, sid, transtime):
     logging.debug('SID:'+str(sid)+' transtime:'+str(transtime))
