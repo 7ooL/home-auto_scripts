@@ -44,7 +44,7 @@ def triggerSceneChange (whichtag, whichScene):
     # device that is on when ever some one is home except for bed 
     # check and see if any one is home, if they are dont change ant$
     if home.private.getboolean('Devices', 'wemo'):
-      if home.private.getboolean('Weom', 'wdevice2_active'):
+      if home.private.getboolean('Wemo', 'wdevice2_active'):
         if not home.public.getboolean('wemo','wdevice2_status'):
           for section in home.public.sections():
             if section == "people_home":
@@ -60,13 +60,13 @@ def calculateScenes(howmany):
 
   # if calculate is called and the time is before default start, use default start time to calculate
   if len(sys.argv) > 1:
-    fst = home.private.get('Time', 'first_time').split(':')
+    fst = home.private.get('Time', 'evening_first_time').split(':')
     calcNow = now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2]))
   else:
     calcNow = now
 
   # read in last scene trigger (lst) time in from config file
-  lst = home.private.get('Time', 'last_time').split(':')
+  lst = home.private.get('Time', 'evening_last_time').split(':')
   diff = (datetime.datetime.today().replace(hour=int(lst[0]), minute=int(lst[1]), second=int(lst[2]))) - calcNow
   # time to next scene (ttns)
   ttns=diff/howmany
@@ -125,7 +125,6 @@ def calculateScenes(howmany):
 def main(argv):
   logging.debug('Running Main()')
 
-
   cs = home.public.get('auto','currentscene')
   # if auto run is off calculate transition times
   # 3,600,000/100 = 36000ms = 1 hour
@@ -137,8 +136,8 @@ def main(argv):
 
   ################################
   # Clean up trigger directories #
-#  if home.private.getboolean('Devices', 'ifttt'):
-#    call(["find", home.private.get('Path','ifttt'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
+  if home.private.getboolean('Devices', 'ifttt'):
+    call(["find", home.private.get('Path','ifttt'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
 
   ####################
   # Pull Wemo Status #
@@ -150,11 +149,11 @@ def main(argv):
         cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+x+'_name')+'" status'
         proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
         (out, err) = proc.communicate()
-        home.public.set('wemo', 'wdevice'+x+'_status', out.rstrip(b'\n') )
+        home.public.set('wemo', 'wdevice'+x+'_status', out.rstrip(b'\n').decode() )
         home.saveSettings()
         cDevice = str(home.public.get('wemo', 'wdevice'+x+'_status'))
         if pDevice != cDevice:
-          logging.info(home.public.get('wemo', 'wdevice'+x+'_name')+'changed from '+pDevice+' to '+cDevice)
+          logging.info(home.public.get('wemo', 'wdevice'+x+'_name')+' changed from '+pDevice+' to '+cDevice)
 
 
   ###############################
@@ -166,16 +165,16 @@ def main(argv):
     home.public.set('settings','evening', 'true')
     v_on = str(home.private.get('Time', 'vaca_on_time')).split(':')
     v_off = str(home.private.get('Time', 'vaca_off_time')).split(':')
-    home.private.set('Time','last_time', str(home.private.get('Time', 'vaca_off_time')))
+    home.private.set('Time','evening_last_time', str(home.private.get('Time', 'vaca_off_time')))
   else:
     # turned off because this kept making morning come on when it was turned off
     #home.public.set('settings','morning', 'true') 
-    home.private.set('Time','last_time', home.private.get('Time','default_last_time'))
+    home.private.set('Time','evening_last_time', home.private.get('Time','default_last_time'))
 
   ##############################
   # Configure Default Settings #
   # set evening start and end times to default if before first start time, so it auto is on before then it works
-  fst = home.private.get('Time', 'first_time').split(':')
+  fst = home.private.get('Time', 'evening_first_time').split(':')
   if now <= now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2])):
     logging.debug('Default settings applied '+str(now)+' <= '+ str(now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2]))))
     home.public.set('settings','evening', 'true')
@@ -204,7 +203,7 @@ def main(argv):
     st_3 = str(home.public.get('auto', 'scene_3_on_time')).split(':')
     st_4 = str(home.public.get('auto', 'scene_4_on_time')).split(':')
     st_5 = str(home.public.get('auto', 'scene_5_on_time')).split(':')
-    ls_bed = str(home.private.get('Time', 'last_time')).split(':')
+    ls_bed = str(home.private.get('Time', 'evening_last_time')).split(':')
 
     #################
     # VACATION MODE #
@@ -216,12 +215,13 @@ def main(argv):
           triggerSceneChange('vaca', 1)
 
 
-    ####################################
-    # Wemo Device1 (LAVA LAMP) CONTROL # 
+    #########################
+    # Wemo Device 1 CONTROL #
     if home.private.getboolean('Devices', 'wemo'):
       if home.private.getboolean('Wemo', 'wdevice1_active'):
         d1_on = str(home.public.get('wemo', 'wdevice1_on_time')).split(':')
         d1_off = str(home.public.get('wemo', 'wdevice1_off_time')).split(':')
+        wstatus = home.public.get('wemo', 'wdevice1_status')
         # times must be between 0..59, by doing a -10 it can cause error as it drops below time "0"
         for i in range(1,3):
           if int(d1_off[i]) < 11:
@@ -231,18 +231,20 @@ def main(argv):
         # if vacation mode is false check the time
         if not home.public.getboolean('settings', 'vacation'):
           if now.replace(hour=int(d1_on[0]), minute=int(d1_on[1]), second=int(d1_on[2])) <= now <= now.replace(hour=int(d1_on[0]), minute=int(d1_on[1])+10, second=int(d1_on[2])):
-            cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice1_name')+ '" on'
-            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
-            (out, err) = proc.communicate()
-            logging.info(home.public.get('wemo', 'wdevice1_name')+' turned on')
+            if not home.public.getboolean('wemo', 'wdevice1_status'):
+              cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice1_name')+ '" on'
+              proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+              (out, err) = proc.communicate()
+              logging.debug(cmd)
           if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
-            cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice1_name')+ '" off'
-            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
-            (out, err) = proc.communicate()
-            logging.info(home.public.get('wemo', 'wdevice1_name')+' turned off')
+            if home.public.getboolean('wemo', 'wdevice1_status'):
+              cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice1_name')+ '" off'
+              proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+              (out, err) = proc.communicate()
+              logging.debug(cmd)
 
-    #######################
-    # Wemo Device 2 CONTROL # 
+    #########################
+    # Wemo Device 2 CONTROL #
     # if bed mode is on turn off the wemo device 2
     if home.private.getboolean('Devices', 'wemo'):
       if home.public.getboolean('settings', 'bed'):
@@ -261,19 +263,15 @@ def main(argv):
       if home.public.getboolean('settings', 'morning'):
         if now.replace(hour=int(st_morn[0]), minute=int(st_morn[1]), second=int(st_morn[2])) <= now <= now.replace(hour=int(st_day[0]), minute=int(st_day[1]), second=int(st_day[2])) :
           triggerSceneChange('morn', 1)
-          # if morning mode is enabled, check if wake is on if so turn on the bedroom wake
-          home.setLightScheduleStatus(1,"enabled")
-      else:
-        # if morning mode is disabled also turn off the bedroom wake scene
-        home.setLightScheduleStatus(1,"disabled")
 
     ################
     # DAYTIME MODE #
-    # if morning sceene is over and its before evening 1
+    # if morning scene is over and its before evening 1
     if st_1  != ['null']:
-      if cs == 'morn_1' or cs == 'home' or cs == 'null':
-        if now.replace(hour=int(st_day[0]), minute=int(st_day[1]), second=int(st_day[2])) <= now <= now.replace(hour=int(st_1[0]), minute=int(st_1[1]), second=int(st_1[2])) :
-          triggerSceneChange('daytime', 1)
+      if home.public.getboolean('settings', 'daytime'):
+        if cs == 'morn_1' or cs == 'home' or cs == 'null':
+          if now.replace(hour=int(st_day[0]), minute=int(st_day[1]), second=int(st_day[2])) <= now <= now.replace(hour=int(st_1[0]), minute=int(st_1[1]), second=int(st_1[2])) :
+            triggerSceneChange('daytime', 1)
 
     ######################
     # EVENING CYCLE MODE #
@@ -331,45 +329,57 @@ def main(argv):
     logging.debug('autorun is not enabled')
 
 
-  ###########################
-  # global morning settings #
-  ###########################
-
-  # define all morning times based off global morning value
-  gm = home.public.get('mornings', str(today)+'_morning')
-  global_Morning = datetime.datetime.strptime(gm, '%H:%M:%S')
-
-  # make the morning triggers 30 minutes before global to allow fades
-  newMorning = (global_Morning - datetime.timedelta(minutes=30)).time()
-
-  # HVAC settings set below for wake and home
-  # make the home profile trigger 1.5hrs after morning
-  newHome = (global_Morning + datetime.timedelta(hours=1, minutes=30)).time()
-  # check and set morning lights
-  lm = home.public.get('auto','morning_1_on_time')
-  if lm != 'null':
-    light_Morning = datetime.datetime.strptime(lm, '%H:%M:%S').time()
-    if newMorning != light_Morning:
-      # set light scene morning 
-      home.public.set('auto','morning_1_on_time', newMorning)
-      home.saveSettings()
-
-  # check and set morning light alarm clock
-  wm = home.public.get('wakeup_schedule','localtime').split("T",1)[1]
-  if wm != 'null':
-    wake_Morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
-    if newMorning != wake_Morning:
-      # set bedroom wake schedule 
-      if home.private.getboolean('Devices', 'hue'):
-        home.setLightScheduleTime(1,newMorning)
-
   ######################
   # Pull hue schedules #
   ######################
   if home.private.getboolean('Devices', 'hue'):
-    lightSchedule = home.getLightSchedule(1);
-    home.public.set('wakeup_schedule', 'localtime', lightSchedule['localtime']) 
-    home.public.set('wakeup_schedule', 'status', lightSchedule['status']) 
+    if home.private.getboolean('HueBridge', 'alarm_use'):
+      lightSchedule = home.getLightSchedule( int(home.private.get('HueSchedules', 'alarm_work')));
+      home.public.set('wakeup_schedule', 'work_localtime', lightSchedule['localtime']) 
+      home.public.set('wakeup_schedule', 'work_status', lightSchedule['status']) 
+      lightSchedule = home.getLightSchedule( int(home.private.get('HueSchedules', 'alarm_weekend')));
+      home.public.set('wakeup_schedule', 'weekend_localtime', lightSchedule['localtime']) 
+      home.public.set('wakeup_schedule', 'weekend_status', lightSchedule['status']) 
+      home.saveSettings()
+
+  ###########################
+  # global morning settings #
+  ###########################
+
+  # if choseing to use hue schedule as the way to set global morning values
+  if home.private.getboolean('Devices', 'hue') and home.private.getboolean('HueBridge', 'alarm_use'):
+    if today in range(5):
+      wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
+    else:
+      wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
+    if wm != 'null':
+      wake_morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
+      home.public.set('mornings', str(today)+'_morning', wake_morning)
+      home.saveSettings()
+      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
+      # make the morning triggers 30 minutes before global to allow fades
+      newMorning = (global_morning - datetime.timedelta(minutes=30)).time()
+  else :
+      # define all morning times based off global morning value
+      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
+      # make the morning triggers 30 minutes before global to allow fades
+      newMorning = (global_morning - datetime.timedelta(minutes=30)).time()
+      # check and set morning light alarm clock
+      if today in range(5):
+        wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
+      else:
+        wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
+      if wm != 'null':
+        wake_Morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
+        if newMorning != wake_Morning:
+          # set bedroom wake schedule 
+          home.setLightScheduleTime(1,newMorning)
+
+  # check and set morning lights
+  home.public.set('auto','morning_1_on_time', newMorning)
+  newDaytime = (global_morning + datetime.timedelta(hours=3,minutes=30)).time()
+  home.public.set('auto','daytime_1_on_time', newDaytime)
+  home.saveSettings()
 
   ####################
   # Pull KEVO Status #
@@ -415,6 +425,10 @@ def main(argv):
   ##################
   # pull configuation file from hvac and set home.public ini file for web interface
   if home.private.getboolean('Devices', 'hvac'):
+    # HVAC settings set below for wake and home
+    # make the home profile trigger 1.5hrs after morning
+    newHome = (global_Morning + datetime.timedelta(hours=1, minutes=30)).time()
+
     if not hvac.pullConfig():
       home.public.set('hvac','status','error')
     else:

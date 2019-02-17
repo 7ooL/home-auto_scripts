@@ -48,9 +48,24 @@ options = ['scriptroot', 'ifttt', "hvac", 'dvr']
 placeHolder='/UNDEFINED/HERE'
 doTest(file,section,options,placeHolder)
 
+section = 'Time'
+options = ['evening_first_time','evening_last_time','default_last_time','# trans_percent is a value between 1-99', 'trans_percent','vaca_on_time','vaca_off_time']
+placeHolder='00:00:00'
+doTest(file,section,options,placeHolder)
+
 section = 'HueBridge'
-options = ['ip','username', 'count_down_lights_active']
+options = ['ip','username', 'count_down_lights_active', 'alarm_use']
 placeHolder='UNDEFINED'
+doTest(file,section,options,placeHolder)
+
+section = 'HueScenes'
+options = ['scene_1','scene_2','scene_3','scene_4','scene_5','morn_1','daytime_1','daytime_2','bed_1', 'bed_2','movie','home','home_kitchen','home_fireplace','temp_scene','clean_master', 'clean_main', 'office_1', 'office_2', 'office_3', 'office_4', 'office_5', 'office_6', 'office_7', 'basement_chill']
+placeHolder='UNDEFINED_ID'
+doTest(file,section,options,placeHolder)
+
+section = 'HueGroups'
+options = ['main_floor','master_bedroom', 'count_down_clock', 'kitchen', 'fireplace', 'movie', 'office']
+placeHolder='UNDEFINED_ID'
 doTest(file,section,options,placeHolder)
 
 section = 'Wemo'
@@ -61,21 +76,6 @@ doTest(file,section,options,placeHolder)
 section = 'Kevo'
 options = ['username','password']
 placeHolder='UNDEFINED'
-doTest(file,section,options,placeHolder)
-
-section = 'Time'
-options = ['default_last_time','first_time','# trans_percent is a value between 1-99', 'trans_percent','last_time','vaca_on_time','vaca_off_time']
-placeHolder='00:00:00'
-doTest(file,section,options,placeHolder)
-
-section = 'Scenes'
-options = ['scene_1','scene_2','scene_3','scene_4','scene_5','morn_1','daytime_1','daytime_2','bed_1', 'bed_2','movie','home','home_kitchen','home_fireplace','temp_scene','clean_master', 'clean_main', 'office_1', 'office_2', 'office_3', 'office_4', 'office_5', 'office_6', 'office_7', 'basement_chill']
-placeHolder='UNDEFINED_ID'
-doTest(file,section,options,placeHolder)
-
-section = 'Groups'
-options = ['main_floor','master_bedroom', 'count_down_clock', 'kitchen', 'fireplace', 'movie', 'office']
-placeHolder='UNDEFINED_ID'
 doTest(file,section,options,placeHolder)
 
 section = 'hvac'
@@ -105,14 +105,19 @@ public.read('public.ini')
 
 file = public
 
+section = 'settings'
+options = ['autorun','morning', 'daytime', 'evening', 'hvac_auto','vacation','movie','bed','clean']
+placeHolder='false'
+doTest(file,section,options,placeHolder)
+
 section = 'mornings'
 options = ['0_morning','1_morning','2_morning','3_morning','4_morning','5_morning','6_morning','updating']
-placeHolder='00:"00:00'
+placeHolder='00:00:00'
 doTest(file,section,options,placeHolder)
 
 section = 'people_home'
-options = ['person_name']
-placeHolder='true/false'
+options = ['name']
+placeHolder='false'
 doTest(file,section,options,placeHolder)
 
 section = 'auto'
@@ -125,13 +130,8 @@ options = ['wdevice1_name', 'wdevice1_on_time', 'wdevice1_off_time', 'wdevice1_s
 placeHolder='UNDEFINED'
 doTest(file,section,options,placeHolder)
 
-section = 'settings'
-options = ['autorun','morning','hvac_auto','vacation','movie','evening','bed','clean']
-placeHolder='UNDEFINED'
-doTest(file,section,options,placeHolder)
-	
 section = 'wakeup_schedule'
-options = ['localtime','status']
+options = ['work_localtime','work_status','weekend_localtime','weekend_status']
 placeHolder='UNDEFINED'
 doTest(file,section,options,placeHolder)
 
