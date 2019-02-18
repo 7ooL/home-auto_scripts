@@ -12,8 +12,8 @@ def main(argv):
   logging.info('Running bed script')
 
   # turn on bedroom lights
-  bedtimeScene = home.private.get('Scenes','bed_1')
-  bedroom = home.private.get('Groups','master_bedroom')
+  bedtimeScene = home.private.get('HueScenes','bed_1')
+  bedroom = home.private.get('HueGroups','master_bedroom')
   home.playScene( bedtimeScene , bedroom )
 
   # check and see if the time now is greater than the morning routine,
@@ -22,23 +22,23 @@ def main(argv):
   st_morn = str(home.public.get('auto', 'morning_1_on_time')).split(':')
   if now >= now.replace(hour=int(st_morn[0]), minute=int(st_morn[1]), second=int(st_morn[2])):
     # the eveing will come back on during auto-runs default 
-    home.public.set('settings','evening', 'off')
-    home.public.set('settings','bed', 'on')
+    home.public.set('settings','evening', 'false')
+    home.public.set('settings','bedtime', 'true')
 
   home.public.set('auto','currentscene', 'null')
 
   # lock the door if necessary
-  lockState = home.public.get('lock', 'status')
-
-  # if the house is unlocked, then lock the door
-  if lockState == "Unlocked":
-     home.kevo("lock")
-     home.public.set('lock', 'status', "Locked")
+  if home.private.getboolean('Devices', 'kevo'):
+    lockState = home.public.get('lock', 'status')
+    # if the house is unlocked, then lock the door
+    if lockState == "Unlocked":
+       home.kevo("lock")
+       home.public.set('lock', 'status', "Locked")
 
   # if bed script was triggered and we are still in movie mode, make changes
   if home.public.getboolean('settings','movie'):
     logging.info('Movie is on, turning off')
-    home.public.set('settings','movie', 'off')
+    home.public.set('settings','movie', 'false')
     settings = ast.literal_eval(home.private.get("Movie","settings"))
     home.public.set("settings","morning", settings['morning'])
     home.public.set("settings","autorun", settings['autorun'])
@@ -47,26 +47,35 @@ def main(argv):
  
   # save new settings
   home.saveSettings()
-  # define some variables
-  mainfloor = home.private.get('Groups','main_floor')
-  cdclock = home.private.get('Groups','count_down_clock')
+
   time.sleep(1)
 
-  # turn off lava lamp
-  os.system('wemo switch "lava lamp" off')
-  os.system('wemo switch "wemo im home" off')
+  # turn off wemo devices
+  if home.private.getboolean('Devices', 'wemo'):
+    for x in range(1,3):
+      x = str(x)
+      if home.private.getboolean('Wemo', 'wdevice'+x+'_active'):
+        if home.public.get('wemo', 'wdevice'+x+'_status'):
+        cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+x+'_name')+'" off'
+        proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+        (out, err) = proc.communicate()
+        logging.debug(cmd)
 
-  # set all counters to default 
-  home.setCountdownLights( cdclock , "default", False)
-  time.sleep(2)
-  # counter 1
-  home.singleLightCountdown("16", 100)
-  # counter 2
-  home.singleLightCountdown("19", 100)
-  # counter 3
-  home.singleLightCountdown("20", 100)
+  # set all counters to default
+  if home.private.getboolean('HueBridge', 'count_down_lights_active'):
+    home.setCountdownLights(  home.private.get('HueGroups','count_down_clock') , "default", False)
+    time.sleep(2)
+    # counter 1
+    home.singleLightCountdown("16", 100)
+    # counter 2
+    home.singleLightCountdown("19", 100)
+    # counter 3
+    home.singleLightCountdown("20", 100)
+  else:
+    time.sleep(5)
+
   # turn off all lights
-  home.groupLightsOff( mainfloor )
+  home.groupLightsOff(0)
 
   # remove file that triggered script
   if os.path.isfile(bedFile):

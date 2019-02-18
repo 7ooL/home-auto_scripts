@@ -82,9 +82,9 @@ class Home(object):
     r = requests.get(api_url)
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
-    for lights in json_objects['lightstates'].iteritems():
+    for lights in json_objects['lightstates'].items():
       lights[1]['transitiontime'] = int(transtime)
-      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lights/'+lights[0]+'/state'
+      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
       payload = lights[1]
       self.putCommand(api_url, payload)
       logging.debug('END')
@@ -97,9 +97,9 @@ class Home(object):
     r = requests.get(api_url)
     json_str = json.dumps(r.json())
     json_objects = json.loads(json_str)
-    for lights in json_objects['lightstates'].iteritems():
+    for lights in json_objects['lightstates'].items():
       lights[1]['bri'] = int(bri)
-      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lights/'+lights[0]+'/state'
+      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
       payload = lights[1]
       self.putCommand(api_url, payload)
     logging.debug('END')
@@ -110,7 +110,7 @@ class Home(object):
         logging.debug(str(key)+' '+str(value))
     # dealing with all lights, use group 0
     api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/groups/'+str(gid)+'/action'
-    # turn off all the lights in the house with a slow trasition
+    # set the sceen using the id provided
     payload = {'scene': sid}
     self.putCommand(api_url, payload)
     logging.debug('END')

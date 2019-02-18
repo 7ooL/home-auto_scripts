@@ -6,10 +6,10 @@ import logging
 from decimal import Decimal
 from subprocess import call
 
-def triggerSceneChange (whichtag, whichScene):
+def triggerSceneChange (whichtag, whichScene, whichGroup):
 
   if home.private.getboolean('Devices', 'hue'):
-    logging.info(str(whichtag)+'_'+str(whichScene))
+    logging.info('TAG:'+str(whichtag)+' SID:'+str(whichScene)+' GID:'+str(whichGroup))
     cs = home.public.get('auto','currentscene')
     home.public.set('auto','currentscene', str(whichtag)+'_'+str(whichScene))
     logging.debug('current scene set to: '+str(whichtag)+'_'+str(whichScene))
@@ -20,7 +20,7 @@ def triggerSceneChange (whichtag, whichScene):
     for section in home.public.sections():
       if section == "light_scenes":
         for scene, value in home.public.items(section):
-          if value == 'on':
+          if value == 'in':
             home.public.set('light_scenes', scene, 'off')
 
     home.saveSettings()
@@ -31,9 +31,9 @@ def triggerSceneChange (whichtag, whichScene):
       whichtag = 'scene' 
 
     # actually activate scene with transition time
-    home.setTransTimeOfScene(home.private.get('Scenes', str(whichtag)+'_'+str(whichScene)), home.public.get('auto', str(whichtag)+'_'+str(whichScene)+'_trans_time'))
+    home.setTransTimeOfScene(home.private.get('HueScenes', str(whichtag)+'_'+str(whichScene)), home.public.get('auto', str(whichtag)+'_'+str(whichScene)+'_trans_time'))
     time.sleep(.2)
-    home.playScene(home.private.get('Scenes', str(whichtag)+'_'+str(whichScene)),home.private.get('Groups','main_floor'))
+    home.playScene(home.private.get('HueScenes', str(whichtag)+'_'+str(whichScene)),str(whichGroup))
     # set the transition time for the current scene back to quick on the hue bridge
 
     # this keeps making them trigger fast and not respecting the setrasition time, try using that fucntion after play, or a time delay before this
@@ -178,10 +178,10 @@ def main(argv):
   if now <= now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2])):
     logging.debug('Default settings applied '+str(now)+' <= '+ str(now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2]))))
     home.public.set('settings','evening', 'true')
-    home.public.set('settings','bed', 'false')
+    home.public.set('settings','bedtime', 'false')
     sys.argv.append("Defaults") #used in claculateSecenes
     calculateScenes(4)
-    if cs != 'morn_1' and cs != 'daytime_1' and cs != 'home':
+    if cs != 'morning_1' and cs != 'daytime_1' and cs != 'home':
       home.public.set('auto','currentscene', 'null')
       logging.debug('current scene set to: null')
       home.public.set('auto', 'previousscene', cs)
@@ -212,8 +212,7 @@ def main(argv):
       if now.replace(hour=int(v_on[0]), minute=int(v_on[1]), second=int(v_on[2])) <= now <= now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])):
         if cs == 'null' and cs != 'vaca':
           home.groupLightsOn(0)
-          triggerSceneChange('vaca', 1)
-
+          triggerSceneChange('vaca', 1, int(home.private.get("HueGroups","main_floor")))
 
     #########################
     # Wemo Device 1 CONTROL #
@@ -247,7 +246,7 @@ def main(argv):
     # Wemo Device 2 CONTROL #
     # if bed mode is on turn off the wemo device 2
     if home.private.getboolean('Devices', 'wemo'):
-      if home.public.getboolean('settings', 'bed'):
+      if home.public.getboolean('settings', 'bedtime'):
         if home.private.getboolean('Wemo', 'wdevice2_active'):
           if home.public.getboolean('Wemo',''):
             cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice2_name')+ '" off'
@@ -262,16 +261,16 @@ def main(argv):
     if cs == 'null':
       if home.public.getboolean('settings', 'morning'):
         if now.replace(hour=int(st_morn[0]), minute=int(st_morn[1]), second=int(st_morn[2])) <= now <= now.replace(hour=int(st_day[0]), minute=int(st_day[1]), second=int(st_day[2])) :
-          triggerSceneChange('morn', 1)
+          triggerSceneChange('morning', 1, int(home.private.get("HueGroups","main_floor")))
 
     ################
     # DAYTIME MODE #
     # if morning scene is over and its before evening 1
     if st_1  != ['null']:
       if home.public.getboolean('settings', 'daytime'):
-        if cs == 'morn_1' or cs == 'home' or cs == 'null':
+        if cs == 'morning_1' or cs == 'home' or cs == 'null':
           if now.replace(hour=int(st_day[0]), minute=int(st_day[1]), second=int(st_day[2])) <= now <= now.replace(hour=int(st_1[0]), minute=int(st_1[1]), second=int(st_1[2])) :
-            triggerSceneChange('daytime', 1)
+            triggerSceneChange('daytime', 1, int(home.private.get("HueGroups","main_floor")))
 
     ######################
     # EVENING CYCLE MODE #
@@ -282,7 +281,7 @@ def main(argv):
         if now.replace(hour=int(st_1[0]), minute=int(st_1[1]), second=int(st_1[2])) <= now <= now.replace(hour=int(st_2[0]), minute=int(st_2[1]), second=int(st_2[2])):
           if cs == 'null' or cs == 'vaca_1' or cs == 'daytime_1' or cs == 'home':
             calculateScenes(4)
-            triggerSceneChange('scene', 1)
+            triggerSceneChange('scene', 1, int(home.private.get("HueGroups","main_floor")))
 
       # stage 2
       if st_2 != ['null']:
@@ -290,7 +289,7 @@ def main(argv):
           if cs == 'null':
             calculateScenes(3)
           if cs == 'scene_1' or cs == 'null' or cs == 'home':
-            triggerSceneChange('scene',2)
+            triggerSceneChange('scene',2, int(home.private.get("HueGroups","main_floor")))
 
       # stage 3
       if st_3 != ['null']:
@@ -298,7 +297,7 @@ def main(argv):
           if cs == 'null':
             calculateScenes(2)
           if cs == 'scene_2' or cs == 'null' or cs == 'home':
-            triggerSceneChange('scene',3)
+            triggerSceneChange('scene',3, int(home.private.get("HueGroups","main_floor")))
 
       # stage 4
       if st_4 != ['null']:
@@ -306,7 +305,7 @@ def main(argv):
           if cs == 'null':
             calculateScenes(1)
           if cs == 'scene_3' or cs == 'null' or cs == 'home':
-            triggerSceneChange('scene',4)
+            triggerSceneChange('scene',4, home.private.get("HueGroups","main_floor"))
 
       # stage 5
       if st_5 != ['null']:
@@ -315,7 +314,7 @@ def main(argv):
             home.public.set('auto','currentscene', 'null')
             if home.public.getboolean('settings', 'vacation'):
               home.public.set('auto','currentscene', 'scene_5')
-            triggerSceneChange('scene',5)
+            triggerSceneChange('scene',5, int(home.private.get("HueGroups","main_floor")))
 
       # if its past the vacation off time turn off the lights
       if home.public.getboolean('settings', 'vacation') and now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])) <= now:
@@ -377,8 +376,10 @@ def main(argv):
 
   # check and set morning lights
   home.public.set('auto','morning_1_on_time', newMorning)
+  home.public.set('auto','morning_1_trans_time', 18000)
   newDaytime = (global_morning + datetime.timedelta(hours=3,minutes=30)).time()
   home.public.set('auto','daytime_1_on_time', newDaytime)
+  home.public.set('auto','daytime_1_trans_time', 18000)
   home.saveSettings()
 
   ####################
@@ -512,11 +513,11 @@ if __name__ == "__main__":
     # reset all transition times to quick
     if sys.argv[1] == 'reset':
       home.SetQuickTrans('daytime_1')
-      home.SetQuickTrans('morn_1')
+      home.SetQuickTrans('morning_1')
       home.SetQuickTrans('home_1')
       for x in range(1,5):
         home.SetQuickTrans('scene_'+str(x))
-    else:    
+    else:
       now = now.replace(hour=int(sys.argv[1]),minute=int(sys.argv[2]))
       home.public.set('settings','autorun', sys.argv[3])
       home.saveSettings()

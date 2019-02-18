@@ -31,8 +31,8 @@ def main(argv):
   if run:
     logging.info('Executing RUN()')
     home.public.set('settings','autorun', 'true')
-    home.playScene(home.private.get('Scenes', 'home'), home.private.get('Groups','main_floor')) 
-    home.playScene(home.private.get("Scenes", "office_"+str(random.randint(1,7))), home.private.get('Groups','office'))
+    home.playScene(home.private.get('HueScenes', 'home'), home.private.get('HueGroups','main_floor')) 
+    home.playScene(home.private.get("HueScenes", "office_"+str(random.randint(1,7))), home.private.get('HueGroups','office'))
     home.public.set('auto', 'currentscene', 'home')
     home.saveSettings()
 

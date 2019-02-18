@@ -22,7 +22,7 @@ def main(argv):
       logging.info('marking '+s+' as not home')
       home.public.set("people_home", s,"false")
       home.saveSettings()
-      home.blinkGroup( home.private.get('Groups','main_floor') )
+      home.blinkGroup( home.private.get('HueGroups','main_floor') )
 
   # check and see if anyone is home, if they are dont run actions
   for section in home.public.sections():
@@ -43,7 +43,7 @@ def main(argv):
       if home.private.getboolean("HueBridge", "count_down_lights_active"):
         # light 21 bloom
         # set all light to red using group countDownClock id
-        home.setCountdownLights(home.private.get("Groups", "count_down_clock"), 'red', True)
+        home.setCountdownLights(home.private.get("HueGroups", "count_down_clock"), 'red', True)
         # light 1
         home.singleLightCountdown("16", 100)
         # light 2

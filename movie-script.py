@@ -28,7 +28,7 @@ def main(argv):
       home.public.set("settings","autorun", settings['autorun'])
       home.private.set('Movie','settings', 'Null' )
     # put the lights to the last ,lightState before movie was triggered
-    home.playScene(home.private.get('Scenes', 'temp_scene'), home.private.get('Groups', 'main_floor'))
+    home.playScene(home.private.get('Scenes', 'temp_scene'), home.private.get('HueGroups', 'main_floor'))
     home.public.set('extra','light_state','null')
 
   else:
@@ -37,7 +37,7 @@ def main(argv):
     logging.debug('saving: '+str(currentSettings))
     home.private.set('Movie','settings', currentSettings )
     # save the current light states to temp_scene
-    home.saveLightState(home.private.get('Scenes', 'temp_scene'))
+    home.saveLightState(home.private.get('HueScenes', 'temp_scene'))
     home.public.set('settings','movie', 'on')
     home.public.set('settings','autorun', 'off')
     logging.debug('autoRun turned off') 
@@ -45,8 +45,8 @@ def main(argv):
     logging.debug('previous scene set to '+str(home.public.get('auto','currentscene'))) 
     home.public.set('auto','currentscene','movie')
     logging.debug('currenty scene set to movie') 
-    home.setTransTimeOfScene( home.private.get('Scenes', 'movie'), 100)
-    home.playScene( home.private.get('Scenes', 'movie'), home.private.get('Groups', 'main_floor'))
+    home.setTransTimeOfScene( home.private.get('HueScenes', 'movie'), 100)
+    home.playScene( home.private.get('HueScenes', 'movie'), home.private.get('HueGroups', 'main_floor'))
     proc = subprocess.Popen(['/usr/local/bin/wemo switch "wemo im home" off'], stdout=subprocess.PIPE, shell=True )
     (out, err) = proc.communicate()
     logging.info('wemo im home turned off')
