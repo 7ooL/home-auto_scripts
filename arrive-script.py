@@ -31,8 +31,15 @@ def main(argv):
   if run:
     logging.info('Executing RUN()')
     home.public.set('settings','autorun', 'true')
-    home.playScene(home.private.get('HueScenes', 'home'), home.private.get('HueGroups','main_floor')) 
-    home.playScene(home.private.get("HueScenes", "office_"+str(random.randint(1,7))), home.private.get('HueGroups','office'))
+    if home.private.getboolean('Devices','hue'):
+      home.playScene(home.private.get('HueScenes', 'home'), home.private.get('HueGroups','main_floor')) 
+      home.playScene(home.private.get("HueScenes", "office_"+str(random.randint(1,7))), home.private.get('HueGroups','office'))
+      home.playScene(home.private.get("HueScenes", "clean_master"), home.private.get('HueGroups','master_bedroom'))
+    if home.private.getboolean('Devices','decora'):
+      home.decora(home.private.get('Decora', 'switch_1'), "ON", "75")
+      home.decora(home.private.get('Decora', 'switch_4'), "ON", "75")
+      home.decora(home.private.get('Decora', 'switch_3'), "ON", "None")
+
     home.public.set('auto', 'currentscene', 'home')
     home.saveSettings()
 

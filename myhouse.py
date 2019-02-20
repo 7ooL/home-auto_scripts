@@ -10,6 +10,12 @@ import ast
 import configparser
 #import pyKevo
 import logging
+import vivint
+import smtplib
+from decora_wifi import DecoraWiFiSession
+from decora_wifi.models.person import Person
+from decora_wifi.models.residential_account import ResidentialAccount
+from decora_wifi.models.residence import Residence
 from logging.config import BaseConfigurator
 from logging.config import fileConfig
 
@@ -53,6 +59,68 @@ class Home(object):
       logging.error(api_url)
       logging.error(payload)
 
+  def sendText(self, message):
+    logging.debug('attempting to send text: '+message)
+    gmail_user = Home.private.get("Gmail","username")
+    gmail_password = Home.private.get("Gmail","password")
+
+    sent_from = "Home-Auto"
+    to = [Home.private.get("MMS","email_1")]
+    subject = 'Home-Auto'
+    email_text = message
+    try:
+      server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+      server.ehlo()
+      server.login(gmail_user, gmail_password)
+      server.sendmail(sent_from, to, email_text)
+      server.close()
+      logging.info('sent text: '+message)
+    except:
+      logging.error('Something went wrong sending text.')
+
+  def get_armed_state(self):
+    logging.debug('contacting vivint')
+    session = vivint.VivintCloudSession( Home.private.get('Vivint','username'),Home.private.get('Vivint','password'))
+    panels = session.get_panels()
+    for panel in panels:
+      panel.update_devices()
+      devices = panel.get_devices()
+      logging.debug('vivint: '+ panel.get_armed_state())
+      return  panel.get_armed_state()
+
+  def decora(self, switch_name, command, brightness):
+    logging.debug('switch:'+switch_name+' command:'+str(command)+' brightness: '+brightness)
+    username = Home.private.get('Decora','username')
+    password = Home.private.get('Decora','password')
+
+    session = DecoraWiFiSession()
+    session.login(username, password)
+
+    perms = session.user.get_residential_permissions()
+    all_residences = []
+    for permission in perms:
+      if permission.residentialAccountId is not None:
+        acct = ResidentialAccount(session, permission.residentialAccountId)
+        for res in acct.get_residences():
+          all_residences.append(res)
+      elif permission.residenceId is not None:
+        res = Residence(session, permission.residenceId)
+        all_residences.append(res)
+    for residence in all_residences:
+      for switch in residence.get_iot_switches():
+        attribs = {}
+        if switch.name == switch_name:
+          if brightness is not "None":
+            attribs['brightness'] = brightness
+          if command == 'ON':
+            attribs['power'] = 'ON'
+          else:
+            attribs['power'] = 'OFF'
+          logging.info(switch.name+':'+str(attribs))
+        switch.update_attributes(attribs)
+
+    Person.logout(session)
+
   def kevo(self, command):
     logging.debug('command:'+str(command))
     username = Home.private.get('Kevo','username')
@@ -75,20 +143,31 @@ class Home(object):
       logging.error(command+' Door')
       return "error"
 
-  def setTransTimeOfScene(self, sid, transtime):
-    logging.debug('SID:'+str(sid)+' transtime:'+str(transtime))
-    # get the current light states in the scene to update transition times
-    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid
-    r = requests.get(api_url)
-    json_str = json.dumps(r.json())
-    json_objects = json.loads(json_str)
-    for lights in json_objects['lightstates'].items():
-      lights[1]['transitiontime'] = int(transtime)
-      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
-      payload = lights[1]
-      self.putCommand(api_url, payload)
-      logging.debug('END')
+ # def setTransTimeOfScene(self, sid, transtime):
+ #   logging.debug('SID:'+str(sid)+' transtime:'+str(transtime))
+ #   # get the current light states in the scene to update transition times
+#    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid
+#    r = requests.get(api_url)
+#    json_str = json.dumps(r.json())
+#    json_objects = json.loads(json_str)
+#    for lights in json_objects['lightstates'].items():
+#      lights[1]['transitiontime'] = int(transtime)
+#      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
+#      payload = lights[1]
+#      self.putCommand(api_url, payload)
+#      logging.debug('END')
 
+  def setTransTimeOfScene(self, sid, gid, transtime):
+    logging.debug('SID:'+str(sid)+' gid:'+str(gid)+' transtime:'+str(transtime))
+    for key, value in Home.private.items('HueScenes'):
+      if value == sid:
+        logging.debug(str(key)+' '+str(value))
+    # dealing with all lights, use group 0
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/groups/'+str(gid)+'/action'
+    # set the sceen using the id provided
+    payload = {'scene': sid, 'transitiontime': int(transtime)}
+    self.putCommand(api_url, payload)
+    logging.debug('END')
 
   def setBringhtOfScene(self, sid, bri):
     logging.debug('SID:'+str(sid)+' bri:'+str(bri))
@@ -105,7 +184,7 @@ class Home(object):
     logging.debug('END')
 
   def playScene(self, sid, gid):
-    for key, value in Home.private.items('Scenes'):
+    for key, value in Home.private.items('HueScenes'):
       if value == sid:
         logging.debug(str(key)+' '+str(value))
     # dealing with all lights, use group 0

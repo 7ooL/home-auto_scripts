@@ -30,7 +30,7 @@ def main(argv):
       for person, value in home.public.items(section):
         if value == "true":
           run=False
-          logging.debug('leave-script: '+person+' is still home, not running leave function')
+          logging.debug(person+' is still home, not running leave function')
 
   if run:
     logging.debug('Executing RUN()')
@@ -52,6 +52,11 @@ def main(argv):
         home.singleLightCountdown("20", 100)
       # turn off all lights, group 0
       home.groupLightsOff(0)
+
+    # turn off all deocra wifi lights
+    if home.private.getboolean('Devices','decora'):
+      for x in range(1,6):
+        home.decora(home.private.get('Decora', 'switch_'+str(x)), "OFF", "None")
 
     if home.private.getboolean("Devices", "Wemo"):
       if home.private.getboolean("Wemo", "wdevice2_active"):

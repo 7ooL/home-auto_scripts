@@ -59,7 +59,7 @@ placeHolder='UNDEFINED'
 doTest(file,section,options,placeHolder)
 
 section = 'HueScenes'
-options = ['scene_1','scene_2','scene_3','scene_4','scene_5','morn_1','daytime_1','daytime_2','bed_1', 'bed_2','movie','home','home_kitchen','home_fireplace','temp_scene','clean_master', 'clean_main', 'office_1', 'office_2', 'office_3', 'office_4', 'office_5', 'office_6', 'office_7', 'basement_chill']
+options = ['scene_1','scene_2','scene_3','scene_4','scene_5','morn_1','daytime_1','daytime_2','bed_1', 'bed_2','movie','home',''temp_scene','clean_master', 'clean_main', 'office_1', 'office_2', 'office_3', 'office_4', 'office_5', 'office_6', 'office_7', 'basement_chill']
 placeHolder='UNDEFINED_ID'
 doTest(file,section,options,placeHolder)
 
