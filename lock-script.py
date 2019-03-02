@@ -7,32 +7,49 @@ def main(argv):
   now = datetime.datetime.now()
   home = myhouse.Home(); 
 
-  lockFile = home.private.get('Path','ifttt')+"/lock/lock.txt"
-  lockFile2 = "/var/www/html/home-auto/lock/lock.txt"
+  logging.debug('Running lock script')
 
-  lockState = home.public.get('lock', 'status')
+  if home.private.getboolean('Devices', 'kevo'):
 
-  # toggle the lock state
-  if lockState == "Unlocked":
-     logging.info('Locked Door')
-     home.kevo("lock")
-     home.public.set('lock', 'status', "Locked") #  auto-run will query state every 5 mintes, set now to update web-interface
+    lockFile = sys.argv[1]
+    logging.debug("lockFile: "+lockFile)
+
+    lockState = home.public.get('lock', 'status')
+
+    # toggle the lock state
+    if lockState == "Unlocked":
+       logging.info('Locked Door')
+       home.kevo("lock")
+       home.public.set('lock', 'status', "Locked") #  auto-run will query state every 5 mintes, set now to update web-interface
+    else:
+       logging.info('Unlocked Door')
+       home.kevo("unlock")
+       home.public.set('lock', 'status', "Unlocked")
+
+    home.saveSettings()
+
   else:
-     logging.info('Unlocked Door')
-     home.kevo("unlock")
-     home.public.set('lock', 'status', "Unlocked")
+    logging.warning('kevo use not enabled')
 
-  home.saveSettings()
+
 
   if os.path.isfile(lockFile):
     os.remove(lockFile)
-    logging.debug('lock-script: removeing '+lockFile)
-  if os.path.isfile(lockFile2):
-    os.remove(lockFile2)
-    logging.debug('lock-script: removeing '+lockFile2)
+    logging.debug('removeing '+lockFile)
 
   end = datetime.datetime.now()
   logging.debug('finished '+str(end-now))
 
 if __name__ == "__main__":
-  main(sys.argv[1:])
+
+  if len(sys.argv) == 1:
+    logging.error("No input file provided")
+  elif not os.path.isfile(sys.argv[1]):
+    logging.error("Input file does not exist")
+  else:
+    with open(sys.argv[1]) as f:
+      if not f.readline().rstrip():
+        logging.error("Input file is empty")
+      else:
+        main(sys.argv[1])
+

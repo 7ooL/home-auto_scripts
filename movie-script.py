@@ -10,16 +10,16 @@ def main(argv):
   logging.debug('Running movie script')
 
   movieFile = sys.argv[1]
-  movieFile2 = "/var/www/html/home-auto/movie/movie.txt"
+  logging.debug("movieFile: "+movieFile)
 
+
+
+## this  script needs to be rebuild for this house
+# 2/22/2019 
+ 
   if home.public.getboolean('settings', 'movie'):
     logging.info('Movie mode toggled off') 
-    home.public.set('settings','movie', 'off')
-    cs = home.public.get('auto','currentscene')
-    home.public.set('auto', 'previousscene', cs)
-    logging.debug('previous scene set to'+cs) 
-    home.public.set('auto', 'currentscene', 'null')
-    logging.debug('current scene set to Null') 
+    home.public.set('settings','movie', 'false')
     if home.private.get("Movie","settings") != "Null":
       settings = ast.literal_eval(home.private.get("Movie","settings"))
       logging.debug("restoring: "+str(settings))
@@ -66,12 +66,9 @@ def main(argv):
   logging.debug('finished '+str(end-now))
 
 if __name__ == "__main__":
+  if len(sys.argv) == 1:
     logging.error("No input file provided")
   elif not os.path.isfile(sys.argv[1]):
     logging.error("Input file does not exist")
   else:
-    with open(sys.argv[1]) as f:
-      if not f.readline().rstrip():
-        logging.error("Input file is empty")
-      else:
-        main(sys.argv[1])
+    main(sys.argv[1])

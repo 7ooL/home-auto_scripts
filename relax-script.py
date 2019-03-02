@@ -7,14 +7,14 @@ def main(argv):
   now = datetime.datetime.now()
   home = myhouse.Home()
 
-  bedFile = sys.argv[1] 
+  bedFile = sys.argv[1]
 
-  logging.info('Running bed script')
+  logging.info('Running relax script')
+  # this is for when we are in the bedroom and not gfoing back 
+  # into the rest of the house at night
 
-  home.public.set('settings','bedtime', 'true')
-
-  # turn off all lights
-  home.groupLightsOff(0)
+  home.public.set('settings','zone0_evening', 'false')
+  home.public.set('settings','zone1_evening', 'false')
 
   # lock the door if necessary
   if home.private.getboolean('Devices', 'kevo'):
@@ -24,29 +24,8 @@ def main(argv):
        home.kevo("lock")
        home.public.set('lock', 'status', "Locked")
 
-  # if bed script was triggered and we are still in movie mode, make changes
-  if home.public.getboolean('settings','movie'):
-    logging.info('Movie is on, turning off')
-    home.public.set('settings','movie', 'false')
-    settings = ast.literal_eval(home.private.get("Movie","settings"))
-    home.public.set("settings","morning", settings['morning'])
-    home.public.set("settings","autorun", settings['autorun'])
-    home.private.set('Movie','settings', 'Null' )
-    logging.info('Restoring: '+str(settings))
- 
   # save new settings
   home.saveSettings()
-
-  # set all counters to default
-  if home.private.getboolean('HueBridge', 'count_down_lights_active'):
-    home.setCountdownLights(  home.private.get('HueGroups','count_down_clock') , "default", False)
-    time.sleep(2)
-    # counter 1
-    home.singleLightCountdown("16", 100)
-    # counter 2
-    home.singleLightCountdown("19", 100)
-    # counter 3
-    home.singleLightCountdown("20", 100)
 
   # turn off other lights
   if home.private.getboolean('Devices', 'decora'):
@@ -54,9 +33,9 @@ def main(argv):
       x = str(x)
       home.decora(home.private.get('Decora', 'switch_'+str(x)), "OFF", "None")
 
-  # turn off wemo devices
+  # turn off wemo devices not  device 1  (lava lamp in bedr0om)
   if home.private.getboolean('Devices', 'wemo'):
-    for x in range(1,4):
+    for x in range(2,4):
       x = str(x)
       if home.private.getboolean('Wemo', 'wdevice'+x+'_active'):
         if home.public.get('wemo', 'wdevice'+x+'_status'):
@@ -65,13 +44,18 @@ def main(argv):
           (out, err) = proc.communicate()
           logging.info(cmd)
 
-
   cs = []
-  for z in (0,1,2):
+  for z in (0,1):  # keep zone 2 active
     home.public.set('zone'+str(z),'currentscene', 'null')
     logging.debug('zone'+str(z)+' current scene set to: null')
-    home.public.set('settings','zone'+str(z)+'_evening', 'false')
     home.saveSettings()
+
+  # turn off all zone lights
+  home.groupLightsOff(home.private.get('HueGroups','main_floor'))
+  home.groupLightsOff(home.private.get('HueGroups','movie'))
+  home.groupLightsOff(home.private.get('HueGroups','basement_hall'))
+
+
 
   # remove file that triggered script
   if os.path.isfile(bedFile):

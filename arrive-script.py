@@ -9,7 +9,6 @@ def main(argv):
 
   logging.debug('Running arrive script')
 
-#  arriveFile = home.private.get('Path','ifttt')+"/arrive/arrive_home.txt"
   arriveFile = sys.argv[1]
   logging.debug("arriveFile: "+arriveFile)
 
@@ -32,16 +31,21 @@ def main(argv):
     logging.info('Executing RUN()')
     home.public.set('settings','autorun', 'true')
     if home.private.getboolean('Devices','hue'):
-      home.playScene(home.private.get('HueScenes', 'home'), home.private.get('HueGroups','main_floor')) 
+      home.playScene(home.private.get('HueScenes', 'zone0_home'), home.private.get('HueGroups','zone0')) 
+      home.playScene(home.private.get('HueScenes', 'zone1_home'), home.private.get('HueGroups','zone1')) 
+      home.playScene(home.private.get("HueScenes", "zone2_home"), home.private.get('HueGroups','zone2'))
       home.playScene(home.private.get("HueScenes", "office_"+str(random.randint(1,7))), home.private.get('HueGroups','office'))
-      home.playScene(home.private.get("HueScenes", "clean_master"), home.private.get('HueGroups','master_bedroom'))
     if home.private.getboolean('Devices','decora'):
       home.decora(home.private.get('Decora', 'switch_1'), "ON", "75")
       home.decora(home.private.get('Decora', 'switch_4'), "ON", "75")
       home.decora(home.private.get('Decora', 'switch_3'), "ON", "None")
 
-    home.public.set('auto', 'currentscene', 'home')
-    home.saveSettings()
+
+    cs = []
+    for z in (0,1,2):
+      home.public.set('zone'+str(z),'currentscene', 'home')
+      logging.debug('zone'+str(z)+' current scene set to: home')
+      home.saveSettings()
 
   # remove file that triggered script
   if os.path.isfile(arriveFile):

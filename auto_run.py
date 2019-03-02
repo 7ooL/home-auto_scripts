@@ -6,136 +6,164 @@ import logging
 from decimal import Decimal
 from subprocess import call
 
-def triggerSceneChange (whichtag, whichScene, whichGroup):
+##########################
+# HUE Light scene change #
+def triggerSceneChange (z, tag, i, g):
+  logging.info('ZONE:'+str(z)+' TAG:'+str(tag)+' SID:'+str(i)+' GID:'+str(g))
+  if 'evening' in tag:
+    home.setTransTimeOfScene(home.private.get('HueScenes', 'zone'+str(z)+'_'+str(tag)+'_'+str(i)), home.public.get('zone'+str(z), str(tag)+'_trans_time'))
+  else:
+    home.setTransTimeOfScene(home.private.get('HueScenes', 'zone'+str(z)+'_'+str(tag)+'_'+str(i)), home.public.get('zone'+str(z), str(tag)+'_'+str(i)+'_trans_time'))
 
-  logging.info('TAG:'+str(whichtag)+' SID:'+str(whichScene)+' GID:'+str(whichGroup))
-  cs = home.public.get('auto','currentscene')
-  home.public.set('auto','currentscene', str(whichtag)+'_'+str(whichScene))
-  logging.debug('current scene set to: '+str(whichtag)+'_'+str(whichScene))
-  home.public.set('auto', 'previousscene', cs)
+  time.sleep(.2)
+  home.playScene(home.private.get('HueScenes', 'zone'+str(z)+'_'+str(tag)+'_'+str(i)),str(g))
+
+  time.sleep(.2)
+  # reset transiton times to fast
+  home.setTransTimeOfScene(home.private.get('HueScenes', 'zone'+str(z)+'_'+str(tag)+'_'+str(i)), 40)
+
+  cs = home.public.get('zone'+str(z),'currentscene')
+  home.public.set('zone'+str(z),'currentscene', str(tag)+'_'+str(i))
+  logging.debug('zone'+str(z)+' current scene set to: '+str(tag)+'_'+str(i))
+  home.public.set('zone'+str(z), 'previousscene', cs)
   logging.debug('previous scene set to: '+cs)
-
-  # set any temp scenes to off
-  for section in home.public.sections():
-    if section == "light_scenes":
-      for scene, value in home.public.items(section):
-        if value == 'in':
-          home.public.set('light_scenes', scene, 'off')
-
   home.saveSettings()
 
-  # if vacation mode is on trigger the first scene of the evening
-  if whichtag == 'vaca':
-    whichScene = '1'
-    whichtag = 'scene' 
 
-  if home.private.getboolean('Devices', 'hue'):
-    # actually activate scene with transition time
-    home.setTransTimeOfScene(home.private.get('HueScenes', str(whichtag)+'_'+str(whichScene)), str(whichGroup), home.public.get('auto', str(whichtag)+'_'+str(whichScene)+'_trans_time'))
-    time.sleep(.2)
-    home.playScene(home.private.get('HueScenes', str(whichtag)+'_'+str(whichScene)),str(whichGroup))
+#######################
+# WEMO device CONTROL #
+def triggerWemoDeviceOn(num):
+  if home.private.getboolean('Wemo', 'wdevice'+str(num)+'_active'):
+    if not home.public.getboolean('wemo','wdevice'+str(num)+'_status'):
+      cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+str(num)+'_name')+ '" on'
+      proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
+      (out, err) = proc.communicate()
+      logging.debug(cmd)
+def triggerWemoDeviceOff(num):
+  if home.private.getboolean('Wemo', 'wdevice'+str(num)+'_active'):
+    if home.public.getboolean('wemo','wdevice'+str(num)+'_status'):
+      cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+str(num)+'_name')+ '" off'
+      proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
+      (out, err) = proc.communicate()
+      logging.debug(cmd)
+def updateWemo():
+  for x in range(1,4):
+    x = str(x)
+    if home.private.getboolean('Wemo', 'wdevice'+x+'_active'):
+      pDevice = home.public.get('wemo', 'wdevice'+x+'_status')
+      cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+x+'_name')+'" status'
+      proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
+      (out, err) = proc.communicate()
+      home.public.set('wemo', 'wdevice'+x+'_status', out.rstrip(b'\n').decode() )
+      home.saveSettings()
+      cDevice = str(home.public.get('wemo', 'wdevice'+x+'_status'))
+      if pDevice != cDevice:
+        logging.info(home.public.get('wemo', 'wdevice'+x+'_name')+' changed from '+pDevice+' to '+cDevice)
 
-  #######################
-  # WEMO device CONTROL #
-  if home.private.getboolean('Devices', 'wemo'):
-    if home.private.getboolean('Wemo', 'wdevice2_active'):
-      if not home.public.getboolean('wemo','wdevice2_status'):
-        cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice2_name')+ '" on'
-        proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
-        (out, err) = proc.communicate()
-        logging.info(cmd)
-
-def calculateScenes(howmany):
+#####################################
+# Determine the Hue Tansition Times #
+def calculateEvenings(z, howmany):
 
   # if auto run is off calculate transition times
   # 3,600,000/100 = 36000ms = 1 hour
   # 18000 = 30 minutes
   # 27000 = 45 minutes
+  logging.debug('z:'+str(z)+' thismany:'+str(howmany))
 
   # if calculate is called and the time is before default start, use default start time to calculate
+
   if len(sys.argv) > 1:
-    fst = home.private.get('Time', 'evening_first_time').split(':')
+    fst = home.public.get('zone'+str(z),'evening_first_time').split(':')
+    logging.debug('FST: '+str(fst))
     calcNow = now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2]))
   else:
     calcNow = now
 
   # read in last scene trigger (lst) time in from config file
-  lst = home.private.get('Time', 'evening_last_time').split(':')
+  lst = home.public.get('zone'+str(z),'last_time').split(':')
+  logging.debug('LST: '+str(lst))
   diff = (datetime.datetime.today().replace(hour=int(lst[0]), minute=int(lst[1]), second=int(lst[2]))) - calcNow
   # time to next scene (ttns)
   ttns=diff/howmany
   # transition time (tt) should be 60% of the ttns, and then converted into 100's of mili seconds
-  tp = (float(home.private.get('Time', 'trans_percent'))/100)
+  tp = (float(home.public.get('Time', 'trans_percent'))/100)
   tt = int(((int(ttns.total_seconds())*tp)*1000)/100)
 
-  if howmany == 4:
-    home.public.set('auto','scene_1_on_time', calcNow.time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_1_trans_time', tt)
-    home.public.set('auto','scene_2_on_time', (calcNow+ttns).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_2_trans_time', tt)
-    home.public.set('auto','scene_3_on_time', (calcNow+(ttns*2)).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_3_trans_time', tt)
-    home.public.set('auto','scene_4_on_time', (calcNow+(ttns*3)).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_4_trans_time', tt)
-    home.public.set('auto','scene_5_on_time', (calcNow+diff).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_5_trans_time', tt)
-  if howmany == 3:
-    home.public.set('auto','scene_1_on_time', 'null')
-    home.public.set('auto','scene_1_trans_time', 'null')
-    home.public.set('auto','scene_2_on_time',calcNow.time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_2_trans_time', tt)
-    home.public.set('auto','scene_3_on_time', (calcNow+ttns).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_3_trans_time', tt)
-    home.public.set('auto','scene_4_on_time', (calcNow+(ttns*2)).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_4_trans_time', tt)
-    home.public.set('auto','scene_5_on_time', (calcNow+diff).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_5_trans_time', tt)
-  if howmany == 2:
-    home.public.set('auto','scene_1_on_time', 'null')
-    home.public.set('auto','scene_1_trans_time', 'null')
-    home.public.set('auto','scene_2_on_time', 'null')
-    home.public.set('auto','scene_2_trans_time', 'null')
-    home.public.set('auto','scene_3_on_time', calcNow.time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_3_trans_time', tt)
-    home.public.set('auto','scene_4_on_time', (calcNow+ttns).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_4_trans_time', tt)
-    home.public.set('auto','scene_5_on_time', (calcNow+diff).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_5_trans_time', tt)
-  if howmany == 1:
-    home.public.set('auto','scene_1_on_time', 'null')
-    home.public.set('auto','scene_1_trans_time', 'null')
-    home.public.set('auto','scene_2_on_time', 'null')
-    home.public.set('auto','scene_2_trans_time', 'null')
-    home.public.set('auto','scene_3_on_time', 'null')
-    home.public.set('auto','scene_3_trans_time', 'null')
-    home.public.set('auto','scene_4_on_time', calcNow.time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_4_trans_time', tt)
-    home.public.set('auto','scene_5_on_time', (calcNow+diff).time().strftime("%H:%M:%S"))
-    home.public.set('auto','scene_5_trans_time', tt)
+  # max time allowed by hue lights, it will fail to set otherwise, i think this is 1.5 hours
+  if tt > 65535:
+    tt = 65543
+
+  logging.debug('transition time calculated is: '+str(tt))
+
+  if z in (0,1):
+    home.public.set('zone'+str(z),'evening_0_on_time', calcNow.time().strftime("%H:%M:%S"))
+    home.public.set('zone'+str(z),'evening_1_on_time', (calcNow+diff).time().strftime("%H:%M:%S"))
+    home.public.set('zone'+str(z),'evening_trans_time', tt)
+  else:
+    if howmany == 4:
+      home.public.set('zone'+str(z),'evening_0_on_time', calcNow.time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_1_on_time', (calcNow+ttns).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_2_on_time', (calcNow+(ttns*2)).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_3_on_time', (calcNow+(ttns*3)).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_4_on_time', (calcNow+diff).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_trans_time', tt)
+    if howmany == 3:
+      home.public.set('zone'+str(z),'evening_0_on_time', 'null')
+      home.public.set('zone'+str(z),'evening_1_on_time', calcNow.time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_2_on_time', (calcNow+(ttns*2)).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_3_on_time', (calcNow+(ttns*3)).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_4_on_time', (calcNow+diff).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_trans_time', tt)
+    if howmany == 2:
+      home.public.set('zone'+str(z),'evening_0_on_time', 'null')
+      home.public.set('zone'+str(z),'evening_1_on_time', 'null')
+      home.public.set('zone'+str(z),'evening_2_on_time', calcNow.time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_3_on_time', (calcNow+(ttns)).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_4_on_time', (calcNow+diff).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_trans_time', tt)
+    if howmany == 1:
+      home.public.set('zone'+str(z),'evening_0_on_time', 'null')
+      home.public.set('zone'+str(z),'evening_1_on_time', 'null')
+      home.public.set('zone'+str(z),'evening_2_on_time', 'null')
+      home.public.set('zone'+str(z),'evening_3_on_time', (calcNow+(ttns)).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_4_on_time', (calcNow+diff).time().strftime("%H:%M:%S"))
+      home.public.set('zone'+str(z),'evening_trans_time', tt)
 
   home.saveSettings()
-  # end calculate scenes
 
+
+########
+# MAIN #
+########
 def main(argv):
   logging.debug('Running Main()')
-
-  cs = home.public.get('auto','currentscene')
 
   # Monday is 0 and Sunday is 6.
   today = now.today().weekday()
 
+  ###########
+  # DropBox #
+  if home.private.getboolean('Devices','dropbox'):
+    if home.isDropboxRunning():
+     logging.debug("Dropbox is running")
+    else:
+     logging.warning("Dropbox isn't running")
+     os.system("python3 ~/dropbox.py start >> ~/home-auto_scripts/home-auto.log 2>&1")
+
   ##########################
   # Get Vivint Armed State #
   if home.private.getboolean('Devices','vivint'):
-    pstate = home.public.get('vivint', 'state')
-    nstate = home.get_armed_state()
-    #nstate = "armed_away"
-    if nstate != pstate:
-      home.public.set('vivint','state', nstate)
-      logging.info('vivint changed from '+pstate+' to '+nstate)
+    old_alarm_state = home.public.get('vivint', 'state')
+    new_alarm_state = home.get_armed_state()
+
+    #####################
+    # Check Who Is Home #
+    if new_alarm_state != old_alarm_state:
+      home.public.set('vivint','state', new_alarm_state)
+      logging.info('vivint changed from '+old_alarm_state+' to '+new_alarm_state)
       # the new state is armed_away, everyone must be gone, for each person make a leave file
       # just encase the geo-tracking doesnt work
-      if nstate == "armed_away":
+      if new_alarm_state == "armed_away":
         for section in home.public.sections():
           if section == "people_home":
             for person, value in home.public.items(section):
@@ -156,7 +184,7 @@ def main(argv):
       logging.debug('checking sms section, ar:'+str(ar)+' ar_l:'+str(ar_l))
       if now.replace(hour=int(ar[0]), minute=int(ar[1]), second=int(ar[2])) <= now <= now.replace(hour=int(ar_l[0]), minute=int(ar_l[1]), second=int(ar_l[2])):
         if not home.public.getboolean('vivint', 'reminded'):
-          if nstate == "disarmed":
+          if new_alarm_state == "disarmed":
             home.sendText("House is disarmed")
             home.public.set('vivint', 'reminded', 'true')
       else:
@@ -172,268 +200,35 @@ def main(argv):
             run_text=False
             logging.debug('send text check: '+person+' is home')
 
-    if run_text and nstate == "disarmed":
+    if run_text and new_alarm_state == "disarmed":
       logging.debug("Arm house reminder send triggered")
+      if not home.private.get("MMS","sent"):
+        logging.warning("MMS sent time blank")
+        home.private.set("MMS","sent", now)
+        home.saveSettings()
       home.sendText("House was left disarmed")
 
-
   ################################
-  # Clean up trigger directories #
-  if home.private.getboolean('Devices', 'ifttt'):
-    call(["find", home.private.get('Path','ifttt'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
+  # Clean up watch directories #
+  call(["find", home.private.get('Path','watch_dir'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
 
   ####################
   # Pull Wemo Status #
   if home.private.getboolean('Devices', 'wemo'):
-    for x in range(1,3):
-      x = str(x)
-      if home.private.getboolean('Wemo', 'wdevice'+x+'_active'):
-        pDevice = home.public.get('wemo', 'wdevice'+x+'_status')
-        cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+x+'_name')+'" status'
-        proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
-        (out, err) = proc.communicate()
-        home.public.set('wemo', 'wdevice'+x+'_status', out.rstrip(b'\n').decode() )
-        home.saveSettings()
-        cDevice = str(home.public.get('wemo', 'wdevice'+x+'_status'))
-        if pDevice != cDevice:
-          logging.info(home.public.get('wemo', 'wdevice'+x+'_name')+' changed from '+pDevice+' to '+cDevice)
-
-
-  ###############################
-  # Configure Vacation Settings #
-  # check and see if you are on vacation and configure
-  if home.public.getboolean('settings', 'vacation'):
-    home.public.set('settings','morning', 'false')
-    home.public.set('settings','autorun', 'true')
-    home.public.set('settings','evening', 'true')
-    v_on = str(home.private.get('Time', 'vaca_on_time')).split(':')
-    v_off = str(home.private.get('Time', 'vaca_off_time')).split(':')
-    home.private.set('Time','evening_last_time', str(home.private.get('Time', 'vaca_off_time')))
-  else:
-    # turned off because this kept making morning come on when it was turned off
-    #home.public.set('settings','morning', 'true') 
-    home.private.set('Time','evening_last_time', home.private.get('Time','default_last_time'))
-
-  ##############################
-  # Configure Default Settings #
-  # set evening start and end times to default if before first start time, so it auto is on before then it works
-  fst = home.private.get('Time', 'evening_first_time').split(':')
-  if now <= now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2])):
-    logging.debug('Default settings applied '+str(now)+' <= '+ str(now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2]))))
-    home.public.set('settings','evening', 'true')
-    home.public.set('settings','bedtime', 'false')
-    sys.argv.append("Defaults") #used in claculateSecenes
-    calculateScenes(4)
-    if cs != 'morning_1' and cs != 'daytime_1' and cs != 'home':
-      home.public.set('auto','currentscene', 'null')
-      logging.debug('current scene set to: null')
-      home.public.set('auto', 'previousscene', cs)
-      logging.debug('previous scene set to: '+cs)
-
-
-  ####################
-  # AUTO RUN SECTION #
-  ####################
-
-  # if auto run is on do auto run stuff
-  if home.public.getboolean('settings', 'autoRun'):
-
-    # get the start time for all the scenes
-    st_morn = str(home.public.get('auto', 'morning_1_on_time')).split(':')
-    st_day = str(home.public.get('auto', 'daytime_1_on_time')).split(':')
-    st_1 = str(home.public.get('auto', 'scene_1_on_time')).split(':')
-    st_2 = str(home.public.get('auto', 'scene_2_on_time')).split(':')
-    st_3 = str(home.public.get('auto', 'scene_3_on_time')).split(':')
-    st_4 = str(home.public.get('auto', 'scene_4_on_time')).split(':')
-    st_5 = str(home.public.get('auto', 'scene_5_on_time')).split(':')
-    ls_bed = str(home.private.get('Time', 'evening_last_time')).split(':')
-
-    #################
-    # VACATION MODE #
-    # if its past the  vacation on time turn on the lights and trigger the first scene
-    if home.public.getboolean('settings', 'vacation'):
-      if now.replace(hour=int(v_on[0]), minute=int(v_on[1]), second=int(v_on[2])) <= now <= now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])):
-        if cs == 'null' and cs != 'vaca':
-          home.groupLightsOn(0)
-          triggerSceneChange('vaca', 1, int(home.private.get("HueGroups","main_floor")))
-
-    #####################################
-    # Wemo Device 1 CONTROL             #
-    # this device is used on a schedule #
-    if home.private.getboolean('Devices', 'wemo'):
-      if home.private.getboolean('Wemo', 'wdevice1_active'):
-        d1_on = str(home.public.get('wemo', 'wdevice1_on_time')).split(':')
-        d1_off = str(home.public.get('wemo', 'wdevice1_off_time')).split(':')
-        wstatus = home.public.get('wemo', 'wdevice1_status')
-        # times must be between 0..59, by doing a -10 it can cause error as it drops below time "0"
-        for i in range(1,3):
-          if int(d1_off[i]) < 11:
-             d1_off[i] = str(49 + int(d1_off[i]))
-          if int(d1_on[i]) < 11:
-             d1_on[i] = str(49 + int(d1_on[i]))
-        # if vacation mode is false check the time
-        if not home.public.getboolean('settings', 'vacation'):
-          if now.replace(hour=int(d1_on[0]), minute=int(d1_on[1]), second=int(d1_on[2])) <= now <= now.replace(hour=int(d1_on[0]), minute=int(d1_on[1])+10, second=int(d1_on[2])):
-            if not home.public.getboolean('wemo', 'wdevice1_status'):
-              cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice1_name')+ '" on'
-              proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
-              (out, err) = proc.communicate()
-              logging.debug(cmd)
-          if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
-            if home.public.getboolean('wemo', 'wdevice1_status'):
-              cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice1_name')+ '" off'
-              proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
-              (out, err) = proc.communicate()
-              logging.debug(cmd)
-
-    ################
-    # MORNING MODE #
-    # if morning scene is enabled
-    if cs == 'null':
-      if home.public.getboolean('settings', 'morning'):
-        if now.replace(hour=int(st_morn[0]), minute=int(st_morn[1]), second=int(st_morn[2])) <= now <= now.replace(hour=int(st_day[0]), minute=int(st_day[1]), second=int(st_day[2])) :
-          triggerSceneChange('morning', 1, int(home.private.get("HueGroups","main_floor")))
-          if home.private.getboolean('Devices','decora'):
-            home.decora(home.private.get('Decora', 'switch_1'), 'ON', '50')
-            home.decora(home.private.get('Decora', 'switch_4'), 'ON', '50')
-
-
-    ################
-    # DAYTIME MODE #
-    # if morning scene is over and its before evening 1
-    if st_1  != ['null']:
-      if home.public.getboolean('settings', 'daytime'):
-        if cs == 'morning_1' or cs == 'home' or cs == 'null':
-          if now.replace(hour=int(st_day[0]), minute=int(st_day[1]), second=int(st_day[2])) <= now <= now.replace(hour=int(st_1[0]), minute=int(st_1[1]), second=int(st_1[2])) :
-            triggerSceneChange('daytime', 1, int(home.private.get("HueGroups","main_floor")))
-            if home.private.getboolean('Devices','decora'):
-                home.decora(home.private.get('Decora', 'switch_4'), "OFF", "None")
-
-
-    ######################
-    # EVENING CYCLE MODE #
-    # if i haven't said im going to bed then run evening mode
-    if home.public.getboolean('settings', 'evening'):
-      # stage 1
-      if st_1 != ['null']:
-        if now.replace(hour=int(st_1[0]), minute=int(st_1[1]), second=int(st_1[2])) <= now <= now.replace(hour=int(st_2[0]), minute=int(st_2[1]), second=int(st_2[2])):
-          if cs == 'null' or cs == 'vaca_1' or cs == 'daytime_1' or cs == 'home':
-            calculateScenes(4)
-            triggerSceneChange('scene', 1, int(home.private.get("HueGroups","main_floor")))
-            if home.private.getboolean('Devices','decora'):
-              home.decora(home.private.get('Decora', 'switch_4'), "ON", "100")
-              home.decora(home.private.get('Decora', 'switch_1'), "ON", "75")
-
-      # stage 2
-      if st_2 != ['null']:
-        if now.replace(hour=int(st_2[0]), minute=int(st_2[1]), second=int(st_2[2])) <= now <= now.replace(hour=int(st_3[0]), minute=int(st_3[1]), second=int(st_3[2])):        
-          if cs == 'null':
-            calculateScenes(3)
-          if cs == 'scene_1' or cs == 'null' or cs == 'home':
-            triggerSceneChange('scene',2, int(home.private.get("HueGroups","main_floor")))
-            if home.private.getboolean('Devices','decora'):
-              home.decora(home.private.get('Decora', 'switch_4'), "ON", "100")
-              home.decora(home.private.get('Decora', 'switch_1'), "ON", "50")
-
-      # stage 3
-      if st_3 != ['null']:
-        if now.replace(hour=int(st_3[0]), minute=int(st_3[1]), second=int(st_3[2])) <= now <= now.replace(hour=int(st_4[0]), minute=int(st_4[1]), second=int(st_4[2])):        
-          if cs == 'null':
-            calculateScenes(2)
-          if cs == 'scene_2' or cs == 'null' or cs == 'home':
-            triggerSceneChange('scene',3, int(home.private.get("HueGroups","main_floor")))
-            if home.private.getboolean('Devices','decora'):
-              home.decora(home.private.get('Decora', 'switch_4'), "ON", "75")
-              home.decora(home.private.get('Decora', 'switch_1'), "ON", "25")
-
-      # stage 4
-      if st_4 != ['null']:
-        if now.replace(hour=int(st_4[0]), minute=int(st_4[1]), second=int(st_4[2])) <= now <= now.replace(hour=int(st_5[0]), minute=int(st_5[1]), second=int(st_5[2])):        
-          if cs == 'null':
-            calculateScenes(1)
-          if cs == 'scene_3' or cs == 'null' or cs == 'home':
-            triggerSceneChange('scene',4, home.private.get("HueGroups","main_floor"))
-            if home.private.getboolean('Devices','decora'):
-              home.decora(home.private.get('Decora', 'switch_4'), "ON", "25")
-
-      # stage 5
-      if st_5 != ['null']:
-        if now.replace(hour=int(st_5[0]), minute=int(st_5[1]), second=int(st_5[2])) <= now:
-          if cs == 'scene_4' or cs == 'null' or cs == 'home':
-            home.public.set('auto','currentscene', 'null')
-            if home.public.getboolean('settings', 'vacation'):
-              home.public.set('auto','currentscene', 'scene_5')
-            triggerSceneChange('scene',5, int(home.private.get("HueGroups","main_floor")))
-            if home.private.getboolean('Devices','decora'):
-              home.decora(home.private.get('Decora', 'switch_1'), "OFF", "None")
-
-
-      # if its past the vacation off time turn off the lights
-      if home.public.getboolean('settings', 'vacation') and now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])) <= now:
-        if cs == 'scene_5' or cs == 'vaca_1':
-          logging.info('vacation mode enabled, turning lights off')
-          home.groupLightsOff(0)
-          home.public.set('auto','currentscene', 'vaca_off')
-
-  #end auto run
-  else:
-    logging.debug('autorun is not enabled')
-
+    updateWemo()
 
   ######################
   # Pull hue schedules #
   ######################
-  if home.private.getboolean('Devices', 'hue'):
-    if home.private.getboolean('HueBridge', 'alarm_use'):
-      lightSchedule = home.getLightSchedule( int(home.private.get('HueSchedules', 'alarm_work')));
-      home.public.set('wakeup_schedule', 'work_localtime', lightSchedule['localtime']) 
-      home.public.set('wakeup_schedule', 'work_status', lightSchedule['status']) 
-      lightSchedule = home.getLightSchedule( int(home.private.get('HueSchedules', 'alarm_weekend')));
-      home.public.set('wakeup_schedule', 'weekend_localtime', lightSchedule['localtime']) 
-      home.public.set('wakeup_schedule', 'weekend_status', lightSchedule['status']) 
-      home.saveSettings()
+  if home.private.getboolean('HueBridge', 'alarm_use'):
+    lightSchedule = home.getLightSchedule( int(home.private.get('HueSchedules', 'alarm_work')));
+    home.public.set('wakeup_schedule', 'work_localtime', lightSchedule['localtime']) 
+    home.public.set('wakeup_schedule', 'work_status', lightSchedule['status']) 
+    lightSchedule = home.getLightSchedule( int(home.private.get('HueSchedules', 'alarm_weekend')));
+    home.public.set('wakeup_schedule', 'weekend_localtime', lightSchedule['localtime']) 
+    home.public.set('wakeup_schedule', 'weekend_status', lightSchedule['status']) 
+    home.saveSettings()
 
-  ###########################
-  # global morning settings #
-  ###########################
-
-  # if choseing to use hue schedule as the way to set global morning values
-  if home.private.getboolean('Devices', 'hue') and home.private.getboolean('HueBridge', 'alarm_use'):
-    if today in range(5):
-      wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
-    else:
-      wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
-    if wm != 'null':
-      wake_morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
-      home.public.set('mornings', str(today)+'_morning', wake_morning)
-      home.saveSettings()
-      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
-      # make the morning triggers 30 minutes before global to allow fades
-      #hue schedule already sets time back for fade in
-      newMorning = (global_morning + datetime.timedelta(minutes=10)).time()
-  else :
-      # define all morning times based off global morning value
-      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
-      # make the morning triggers 30 minutes before global to allow fades
-      newMorning = (global_morning + datetime.timedelta(minutes=10)).time()
-      # check and set morning light alarm clock
-      if today in range(5):
-        wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
-      else:
-        wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
-      if wm != 'null':
-        wake_Morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
-        if newMorning != wake_Morning:
-          # set bedroom wake schedule in HUE app
-          home.setLightScheduleTime(1,newMorning)
-
-  # check and set morning lights
-  home.public.set('auto','morning_1_on_time', newMorning)
-  home.public.set('auto','morning_1_trans_time', 100)
-  newDaytime = (global_morning + datetime.timedelta(hours=1)).time()
-  home.public.set('auto','daytime_1_on_time', newDaytime)
-  home.public.set('auto','daytime_1_trans_time', 18000)
-  home.saveSettings()
 
   ####################
   # Pull KEVO Status #
@@ -538,6 +333,282 @@ def main(argv):
       if change:
         if not hvac.pushConfig():
           logging.error('pushConfig failed')
+
+
+  ###############################
+  # Configure Vacation Settings #
+  # check and see if you are on vacation and configure
+  if home.public.getboolean('settings', 'vacation'):
+    home.public.set('settings','morning', 'false')
+    home.public.set('settings','autorun', 'true')
+    v_on = str(home.public.get('Time', 'vaca_on_time')).split(':')
+    v_off = str(home.public.get('Time', 'vaca_off_time')).split(':')
+    for z in (0,1,2):
+      if z < 2:
+        home.public.set('zone'+str(z),'last_time', str(home.public.get('Time', 'vaca_off_time')))
+      home.public.set('settings','zone'+str(z)+'_evening', 'true')
+  else:
+    for z in (0,1,2):
+      home.public.set('zone'+str(z),'last_time', home.public.get('zone'+str(z),'default_last_time'))
+
+  #######################
+  # PULL Current Scenes #
+  cs = []
+  for z in (0,1,2):
+    logging.debug('pull current scene zone:'+str(z))
+    cs.append(home.public.get('zone'+str(z),'currentscene'))
+
+  ###########################
+  # global morning settings #
+  ###########################
+
+  # if choseing to use hue schedule as the way to set global morning values
+  if home.private.getboolean('HueBridge', 'alarm_use'):
+    if today in range(5):
+      wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
+    else:
+      wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
+    if wm != 'null':
+      wake_morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
+      home.public.set('mornings', str(today)+'_morning', wake_morning)
+      home.saveSettings()
+      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
+      # make the morning triggers 10 minutes before global to allow fades
+      #hue schedule already sets time back for fade in
+      newMorning = (global_morning + datetime.timedelta(minutes=10)).time()
+      newDaytime = (global_morning + datetime.timedelta(hours=1)).time()
+  else :
+      # define all morning times based off global morning value
+      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
+      # make the morning triggers 10 minutes before global to allow fades
+      newMorning = (global_morning + datetime.timedelta(minutes=10)).time()
+      newDaytime = (global_morning + datetime.timedelta(hours=1)).time()
+      # check and set morning light alarm clock
+      if today in range(5):
+        wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
+      else:
+        wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
+      if wm != 'null':
+        wake_Morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
+        if newMorning != wake_Morning:
+          # set bedroom wake schedule in HUE app
+          home.setLightScheduleTime(1,newMorning)
+
+  # set Morning and daytime start
+  for z in (0,1):
+    home.public.set('zone'+str(z),'morning_0_on_time', newMorning)
+    home.public.set('zone'+str(z),'morning_0_trans_time', 100)
+    home.public.set('zone'+str(z),'daytime_0_on_time', newDaytime)
+    home.public.set('zone'+str(z),'daytime_0_trans_time', 18000)
+    logging.debug('zone'+str(z)+' setting morning start: '+str(newMorning))
+    logging.debug('zone'+str(z)+' setting daytime start: '+str(newDaytime))
+    home.saveSettings()
+
+
+  ####################
+  # AUTO RUN SECTION #
+  ####################
+
+  # if auto run is on do auto run stuff
+  if home.public.getboolean('settings', 'autoRun'):
+
+    #####################################
+    # Wemo Device 1 CONTROL             #
+    # this device is used on a schedule #
+    if home.private.getboolean('Devices', 'wemo'):
+      # if vacation mode is false check the time
+      if not home.public.getboolean('settings', 'vacation'):
+        if home.private.getboolean('Wemo', 'wdevice1_active'):
+          d1_on = str(home.public.get('wemo', 'wdevice1_on_time')).split(':')
+          d1_off = str(home.public.get('wemo', 'wdevice1_off_time')).split(':')
+          wstatus = home.public.get('wemo', 'wdevice1_status')
+          # times must be between 0..59, by doing a -10 it can cause error as it drops below time "0"
+          for i in range(1,3):
+            if int(d1_off[i]) < 11:
+               d1_off[i] = str(49 + int(d1_off[i]))
+            if int(d1_on[i]) < 11:
+               d1_on[i] = str(49 + int(d1_on[i]))
+          logging.debug('COMPARE wemo device1 :'+d1_on[0]+':'+d1_on[1]+':'+d1_on[2]+' <= now <= '+d1_on[0]+':'+str(int(d1_on[1])+10)+':'+d1_on[2])
+          if now.replace(hour=int(d1_on[0]), minute=int(d1_on[1]), second=int(d1_on[2])) <= now <= now.replace(hour=int(d1_on[0]), minute=int(d1_on[1])+10, second=int(d1_on[2])):
+            logging.debug("Should turn on wemo device 1")
+            triggerWemoDeviceOn(1)
+          logging.debug('COMPARE wemo device1 :'+d1_off[0]+':'+str(int(d1_off[1])-10)+':'+d1_off[2]+' <= now <= '+d1_off[0]+':'+d1_off[1]+':'+d1_off[2])
+          if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
+            logging.debug("Should turn off wemo device 1")
+            triggerWemoDeviceOff(1)
+
+
+    # get the start time for all the scenes and zones
+    m = []
+    d = []
+    e = []
+    for z in (0,1,2):
+      logging.debug('z:'+str(z))
+      if z < 2: #zones 0 and 1 only have a single morning and daytime but 2 evenings
+        m.append(str(home.public.get('zone'+str(z), 'morning_0_on_time')).split(':'))
+        logging.debug('zone'+str(z)+' morning_'+str(z)+': '+str(m[z]))
+        d.append(str(home.public.get('zone'+str(z), 'daytime_0_on_time')).split(':'))
+        logging.debug('zone'+str(z)+' daytime_'+str(z)+': '+str(d[z]))
+        et = []
+        for t in (0,1):
+          et.append(str(home.public.get('zone'+str(z), 'evening_'+str(t)+'_on_time')).split(':'))
+        e.append(et)
+        logging.debug('zone'+str(z)+' evening_'+str(z)+': '+str(e[z]))
+      else: # zone three has 5 evenings
+        et = []
+        for t in (0,1,2,3,4):
+          et.append(str(home.public.get('zone'+str(z), 'evening_'+str(t)+'_on_time')).split(':'))
+        e.append(et)
+        logging.debug('zone'+str(z)+' evening_'+str(z)+': '+str(e[z]))
+
+    logging.debug('m:'+str(m))
+    logging.debug('d:'+str(d))
+    logging.debug('e:'+str(e))
+
+    ################
+    # MORNING MODE #
+    # if morning scene is enabled
+    # morning is appliacble to zones 0 and 1
+    for z in (0,1):
+      if cs[z] == 'null':
+        if home.public.getboolean('settings', 'morning'):
+          logging.debug('COMPARE zone'+str(z)+'_morning_'+str(i)+':'+str(m[z][0])+':'+str(m[z][1])+':'+str(m[z][2])+' < now < '+str(d[z][0])+':'+str(d[z][1])+':'+str(d[z][2]))
+          if now.replace(hour=int(m[z][0]), minute=int(m[z][1]), second=int(m[z][2])) <= now <= now.replace(hour=int(d[z][0]), minute=int(d[z][1]), second=int(d[z][2])) :
+            if z == 0: # trigger these events only once, not per zone
+              if home.private.getboolean('Devices', 'wemo'):
+                triggerWemoDeviceOn(2)
+              if home.private.getboolean('Devices','decora'):
+                home.decora(home.private.get('Decora', 'switch_1'), 'ON', '50')
+                home.decora(home.private.get('Decora', 'switch_4'), 'ON', '50')
+              if home.private.getboolean('Devices','hue'):
+                triggerSceneChange(z,'morning', 0, int(home.private.get("HueGroups",'zone'+str(z))))
+            else:
+              if home.private.getboolean('Devices','hue'):
+                triggerSceneChange(z,'morning', 0, int(home.private.get("HueGroups",'zone'+str(z))))
+
+
+    ################
+    # DAYTIME MODE #
+    # if morning scene is over and its before evening 1 on the main floor
+    # only plays when cs is not null, ie. only when morning was kicked off or you come home
+    for z in (0,1):
+      if cs[z] != 'null':
+        if home.public.getboolean('settings', 'daytime'):
+          logging.debug('COMPARE zone'+str(z)+'_daytime_'+str(i)+':'+str(d[z][0])+':'+str(d[z][1])+':'+str(d[z][2])+' < now < '+str(e[z][0][0])+':'+str(e[z][0][1])+':'+str(e[z][0][2]))
+          if now.replace(hour=int(d[z][0]), minute=int(d[z][1]), second=int(d[z][2])) <= now <= now.replace(hour=int(e[z][0][0]), minute=int(e[z][0][1]), second=int(e[z][0][2])) :
+            logging.debug('COMPARE zone'+str(z)+'_daytime_'+str(i)+' CS['+str(z)+']='+str(cs[z])+':morning_0,home,null')
+            if cs[z] in ('morning_0','home','null'):
+              if z == 0: # trigger these events only once, not per zone
+                if home.private.getboolean('Devices','hue'):
+                  triggerSceneChange(z,'daytime', 0, int(home.private.get("HueGroups","zone"+str(z))))
+                if home.private.getboolean('Devices','decora'):
+                  home.decora(home.private.get('Decora', 'switch_4'), "OFF", "None")
+              else:
+                if home.private.getboolean('Devices','hue'):
+                  triggerSceneChange(z,'daytime', 0, int(home.private.get("HueGroups","zone"+str(z))))
+                if home.private.getboolean('Devices', 'wemo'):
+                  triggerWemoDeviceOn(2)
+
+    #################
+    # VACATION MODE #
+    # if its past the vacation on time turn on the lights and trigger the first scene
+    if home.public.getboolean('settings', 'vacation'):
+      if now.replace(hour=int(v_on[0]), minute=int(v_on[1]), second=int(v_on[2])) <= now <= now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])):
+        if cs[z] == 'null':
+          if home.private.getboolean('Devices','hue'):
+            for z in (0,1):
+              triggerSceneChange(z,'evening', 0, int(home.private.get("HueGroups","zone"+str(z))))
+
+
+    #######################################
+    # EVENING CYCLE MODE  ZONE0 and ZONE1 #
+    # if i haven't said im going to bed then run evening mode
+    # this evening mode is appliacble to zones 1 and 2
+
+    for z in (0,1):
+      if home.public.getboolean('settings', 'zone'+str(z)+'_evening'):
+        for i in (0,1):
+          if e[z][i] != ['null']:
+            if i == 1:
+              logging.debug('COMPARE zone'+str(z)+'_evening_'+str(i)+':'+str(e[z][i][0])+':'+str(e[z][i][1])+':'+str(e[z][i][2])+' < now ')
+              if now.replace(hour=int(e[z][i][0]), minute=int(e[z][i][1]), second=int(e[z][i][2])) <= now :
+                logging.debug('COMPARE zone'+str(z)+'_evening_'+str(i)+' CS['+str(z)+']='+str(cs[z])+':null,daytime_'+str(i-1)+',evening_'+str(i-1)+',home')
+                if cs[z] in ('null','vaca_1','daytime_'+str(i-1),'evening_0','home'):
+                  if cs[z] == 'null':
+                    calculateEvenings(z,1)
+                  if home.private.getboolean('Devices','decora'):
+                    home.decora(home.private.get('Decora', 'switch_4'), "ON", "75")
+                  if home.private.getboolean('Devices','hue'):
+                    triggerSceneChange(z,'evening', i, int(home.private.get("HueGroups","zone"+str(z))))
+            else:
+              logging.debug('COMPARE zone'+str(z)+'_evening_'+str(i)+':'+str(e[z][i][0])+':'+str(e[z][i][1])+':'+str(e[z][i][2])+' < now < '+str(e[z][i+1][0])+':'+str(e[z][i+1][1])+':'+str(e[z][i+1][2]))
+              if now.replace(hour=int(e[z][i][0]), minute=int(e[z][i][1]), second=int(e[z][i][2])) <= now <= now.replace(hour=int(e[z][i+1][0]), minute=int(e[z][i+1][1]), second=int(e[z][i+1][2])):
+                logging.debug('COMPARE zone'+str(z)+'_evening_'+str(i)+' CS['+str(z)+']='+str(cs[z])+':null,daytime_'+str(i)+'evening_'+str(i-1)+',home')
+                if cs[z] in ('null','vaca_1','daytime_'+str(i),'evening_'+str(i-1),'home'):
+                  if cs[z] == 'null':
+                    calculateEvenings(z,1)
+                  if home.private.getboolean('Devices','wemo'):
+                    triggerWemoDeviceOn(2)
+                  if home.private.getboolean('Devices','decora'):
+                    home.decora(home.private.get('Decora', 'switch_4'), "ON", "100")
+                  if home.private.getboolean('Devices','hue'):
+                    triggerSceneChange(z,'evening', i, int(home.private.get("HueGroups","zone"+str(z))))
+
+    ############################
+    # EVENING CYCLE MODE ZONE2 #
+    # if i haven't said im going to bed then run evening mode
+
+    z = 2
+    for i in (0,1,2,3,4):
+      if home.public.getboolean('settings', 'zone'+str(z)+'_evening'):
+        if e[z][i] != ['null']:
+          if i == 4:
+            logging.debug('COMPARE zone'+str(z)+'_evening_'+str(i)+':'+str(e[z][i][0])+':'+str(e[z][i][1])+':'+str(e[z][i][2])+' < now ')
+            if now.replace(hour=int(e[z][i][0]), minute=int(e[z][i][1]), second=int(e[z][i][2])) <= now :
+              logging.debug('COMPARE zone'+str(z)+'_evening_'+str(i)+' CS['+str(z)+']='+str(cs[z])+':null,daytime_'+str(i-1)+',evening,home')
+              if cs[z] in ('null','daytime_'+str(i-1),'evening_'+str(i-1),'home'):
+                if cs[z] == 'null':
+                  calculateEvenings(z,1)
+                if home.private.getboolean('Devices','hue'):
+                  triggerSceneChange(z,'evening', i, int(home.private.get("HueGroups","zone"+str(z))))
+          else:
+            logging.debug('COMPARE zone'+str(z)+'_evening_'+str(i)+':'+str(e[z][i][0])+':'+str(e[z][i][1])+':'+str(e[z][i][2])+' < now < '+str(e[z][i+1][0])+':'+str(e[z][i+1][1])+':'+str(e[z][i+1][2]))
+            if now.replace(hour=int(e[z][i][0]), minute=int(e[z][i][1]), second=int(e[z][i][2])) <= now <= now.replace(hour=int(e[z][i+1][0]), minute=int(e[z][i+1][1]), second=int(e[z]  [i+1][2])):
+              logging.debug('COMPARE zone'+str(z)+'_evening_'+str(i)+' CS['+str(z)+']='+str(cs[z])+':null,daytime_'+str(i)+',evening_'+str(i-1)+',home')
+              if cs[z] in ('null','daytime_'+str(i),'evening_'+str(i-1),'home'):
+                if cs[z] == 'null':
+                  calculateEvenings(z,4-i)
+                if home.private.getboolean('Devices','hue'):
+                  triggerSceneChange(z,'evening', i, int(home.private.get("HueGroups","zone"+str(z))))
+
+      # if its past the vacation off time turn off the lights
+      if home.public.getboolean('settings', 'vacation') and now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])) <= now:
+        if cs[z] == 'evening_4':
+          logging.info('vacation mode enabled, turning lights off')
+          home.groupLightsOff(0)
+          home.public.set('zone'+str(z),'currentscene', 'vaca_off')
+
+  #end auto run
+  else:
+    logging.debug('autorun is not enabled')
+
+  ##############################
+  # Configure Default Settings #
+  # set evening start and end times to default if before first start time, so it auto is on before then it works
+  # moved to end of script so , if the scene is home, daytime will get picked up. 
+  for z in (0,1,2):
+    fst = home.public.get('zone'+str(z),'evening_first_time').split(':')
+    if now <= now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2])):
+      logging.debug('Default settings applied zone')
+      home.public.set('settings','zone'+str(z)+'_evening', 'true')
+      if z == 0:
+        home.public.set('settings','bedtime', 'false')
+        sys.argv.append("Defaults") #used in claculateSecenes
+        # calculate evenings for each zone and number of evening scenes
+        calculateEvenings(0,2)
+        calculateEvenings(1,2)
+        calculateEvenings(2,4)
+
 
 
   #########################

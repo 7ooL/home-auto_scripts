@@ -60,33 +60,45 @@ class Home(object):
       logging.error(payload)
 
   def sendText(self, message):
-    logging.debug('attempting to send text: '+message)
-    gmail_user = Home.private.get("Gmail","username")
-    gmail_password = Home.private.get("Gmail","password")
 
-    sent_from = "Home-Auto"
-    to = [Home.private.get("MMS","email_1")]
-    subject = 'Home-Auto'
-    email_text = message
-    try:
-      server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-      server.ehlo()
-      server.login(gmail_user, gmail_password)
-      server.sendmail(sent_from, to, email_text)
-      server.close()
-      logging.info('sent text: '+message)
-    except:
-      logging.error('Something went wrong sending text.')
+    sent_time = datetime.datetime.strptime(Home.private.get("MMS","sent"), "%Y-%m-%d %H:%M:%S.%f")
+    now = datetime.datetime.now()
+    max_delay = timedelta(minutes=int(Home.private.get("MMS","delay")))
+
+    if now - sent_time > max_delay:
+      logging.debug('attempting to send text: '+message)
+      gmail_user = Home.private.get("Gmail","username")
+      gmail_password = Home.private.get("Gmail","password")
+
+      sent_from = "Home-Auto"
+      to = [Home.private.get("MMS","email_1")]
+      subject = 'Home-Auto'
+      email_text = message
+      try:
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.ehlo()
+        server.login(gmail_user, gmail_password)
+        server.sendmail(sent_from, to, email_text)
+        server.close()
+        Home.private.set("MMS","sent", now )
+        logging.info(message)
+      except:
+        logging.error('Something went wrong sending text.')
+    else:
+      logging.debug("not sending text as a recent one was sent")
 
   def get_armed_state(self):
     logging.debug('contacting vivint')
-    session = vivint.VivintCloudSession( Home.private.get('Vivint','username'),Home.private.get('Vivint','password'))
-    panels = session.get_panels()
-    for panel in panels:
-      panel.update_devices()
-      devices = panel.get_devices()
-      logging.debug('vivint: '+ panel.get_armed_state())
-      return  panel.get_armed_state()
+    try:
+      session = vivint.VivintCloudSession( Home.private.get('Vivint','username'),Home.private.get('Vivint','password'))
+      panels = session.get_panels()
+      for panel in panels:
+        panel.update_devices()
+        devices = panel.get_devices()
+        logging.debug('vivint: '+ panel.get_armed_state())
+        return  panel.get_armed_state()
+    except:
+      return "connection error"
 
   def decora(self, switch_name, command, brightness):
     logging.debug('switch:'+switch_name+' command:'+str(command)+' brightness: '+brightness)
@@ -121,6 +133,21 @@ class Home(object):
 
     Person.logout(session)
 
+  def isDropboxRunning(self):
+    pidfile = os.path.expanduser("~/.dropbox/dropbox.pid")
+    try:
+      with open(pidfile, "r") as f:
+          pid = int(f.read())
+      with open("/proc/%d/cmdline" % pid, "r") as f:
+          cmdline = f.read().lower()
+    except:
+      cmdline = ""
+
+    if cmdline:
+      return True
+    else:
+      return False
+
   def kevo(self, command):
     logging.debug('command:'+str(command))
     username = Home.private.get('Kevo','username')
@@ -143,31 +170,32 @@ class Home(object):
       logging.error(command+' Door')
       return "error"
 
- # def setTransTimeOfScene(self, sid, transtime):
- #   logging.debug('SID:'+str(sid)+' transtime:'+str(transtime))
- #   # get the current light states in the scene to update transition times
-#    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid
-#    r = requests.get(api_url)
-#    json_str = json.dumps(r.json())
-#    json_objects = json.loads(json_str)
-#    for lights in json_objects['lightstates'].items():
-#      lights[1]['transitiontime'] = int(transtime)
-#      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
-#      payload = lights[1]
-#      self.putCommand(api_url, payload)
-#      logging.debug('END')
+  def setTransTimeOfScene(self, sid, transtime):
+    logging.debug('SID:'+str(sid)+' transtime:'+str(transtime))
+    # get the current light states in the scene to update transition times
+    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid
+    r = requests.get(api_url)
+    json_str = json.dumps(r.json())
+    json_objects = json.loads(json_str)
+    for lights in json_objects['lightstates'].items():
+      lights[1]['transitiontime'] = int(transtime)
+      api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/scenes/'+sid+'/lightstates/'+lights[0]
+      payload = lights[1]
+      self.putCommand(api_url, payload)
+      logging.debug('END')
 
-  def setTransTimeOfScene(self, sid, gid, transtime):
-    logging.debug('SID:'+str(sid)+' gid:'+str(gid)+' transtime:'+str(transtime))
-    for key, value in Home.private.items('HueScenes'):
-      if value == sid:
-        logging.debug(str(key)+' '+str(value))
-    # dealing with all lights, use group 0
-    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/groups/'+str(gid)+'/action'
-    # set the sceen using the id provided
-    payload = {'scene': sid, 'transitiontime': int(transtime)}
-    self.putCommand(api_url, payload)
-    logging.debug('END')
+
+#  def setTransTimeOfScene(self, sid, gid, transtime):
+#    logging.debug('SID:'+str(sid)+' gid:'+str(gid)+' transtime:'+str(transtime))
+#    for key, value in Home.private.items('HueScenes'):
+#      if value == sid:
+#        logging.debug(str(key)+' '+str(value))
+#    # dealing with all lights, use group 0
+#    api_url='http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/groups/'+str(gid)+'/action'
+#    # set the sceen using the id provided
+#    payload = {'scene': sid, 'transitiontime': int(transtime), 'storelightstate':true}
+#    self.putCommand(api_url, payload)
+#    logging.debug('END')
 
   def setBringhtOfScene(self, sid, bri):
     logging.debug('SID:'+str(sid)+' bri:'+str(bri))
@@ -321,7 +349,7 @@ class Home(object):
 
   def getWeather(self):
     logging.debug('myhouse.getWeather')
-    api_url='http://api.wunderground.com/api/9a995caa21869c46/conditions/q/20170.json'
+    api_url='http://api.wunderground.com/api/9a995caa21869c46/conditions/q/20152.json'
     try:
       r = requests.get(api_url)
       json_str = json.dumps(r.json())

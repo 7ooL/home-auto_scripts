@@ -1,5 +1,5 @@
 import myhouse
-import os, sys, datetime, time
+import os, sys, datetime, time, subprocess
 import logging
 
 def main(argv):
@@ -36,8 +36,14 @@ def main(argv):
     logging.debug('Executing RUN()')
     time.sleep(2)
     home.public.set('settings','autorun', 'false')
-    home.public.set ('auto','currentscene','null')
-    home.saveSettings()
+
+    cs = []
+    for z in (0,1,2):
+      home.public.set('zone'+str(z),'currentscene', 'null')
+      logging.debug('zone'+str(z)+' current scene set to: null')
+      home.public.set('zone'+str(z), 'previousscene', 'null')
+      logging.debug('zone'+str(z)+' previous scene set to: null')
+      home.saveSettings()
 
     if home.private.getboolean("Devices", "hue"):
       if home.private.getboolean("HueBridge", "count_down_lights_active"):
@@ -58,10 +64,14 @@ def main(argv):
       for x in range(1,6):
         home.decora(home.private.get('Decora', 'switch_'+str(x)), "OFF", "None")
 
-    if home.private.getboolean("Devices", "Wemo"):
-      if home.private.getboolean("Wemo", "wdevice2_active"):
-        cmd = 'wemo switch '+home.public.get("wemo", "wdevice2_name")+" off"
-        os.system(cmd)
+    # turn off wemos
+    for x in range(1,4):
+      if home.private.getboolean('Wemo', 'wdevice'+str(x)+'_active'):
+        if home.public.getboolean('wemo','wdevice'+str(x)+'_status'):
+          cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice'+str(x)+'_name')+ '" off'
+          proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+          (out, err) = proc.communicate()
+          logging.info(cmd)
 
     if home.private.getboolean("Devices", "Kevo"):
       # lock the door if necessary
