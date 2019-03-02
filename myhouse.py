@@ -349,7 +349,7 @@ class Home(object):
 
   def getWeather(self):
     logging.debug('myhouse.getWeather')
-    api_url='http://api.wunderground.com/api/9a995caa21869c46/conditions/q/20152.json'
+    api_url= Home.private.get('Weather', 'url')
     try:
       r = requests.get(api_url)
       json_str = json.dumps(r.json())

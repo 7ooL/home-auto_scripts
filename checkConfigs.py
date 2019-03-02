@@ -54,6 +54,7 @@ def privateFile():
     private.read('private.ini')
 
     file = private
+    logging.info(' ----PRIVATE.INI FILE----')
 
     section = 'Devices'
     options = ['decora', 'dropbox', 'dvr', 'gmail', 'hue', 'hvac', 'kevo', 'vivint', 'weather', 'wemo']
@@ -105,6 +106,11 @@ def privateFile():
     placeHolder='UNDEFINED'
     doTest(file,section,options,placeHolder)
 
+    section = 'Weather'
+    options = ['url']
+    placeHolder='UNDEFINED'
+    doTest(file,section,options,placeHolder)
+
     if WRITE:
         with open(r'private.ini', 'w') as configfile:
             private.write(configfile)
@@ -116,6 +122,7 @@ def publicFile():
     public.read('public.ini')
 
     file = public
+    logging.info(' ----PUBLIC.INI FILE----')
 
     section = 'settings'
     options = ['autorun', 'bedtime', 'clean', 'daytime', 'hvac_auto', 'morning', 'movie', 'vacation', 'zone0_evening', 'zone1_evening', 'zone2_evening']
