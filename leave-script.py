@@ -19,7 +19,7 @@ def main(argv):
   if os.path.isfile(leaveFile):
     with open(leaveFile) as f:
       s = f.readline().rstrip()
-      logging.info('marking '+s+' as not home')
+      logging.info('Marking '+s+' as not home')
       home.public.set("people_home", s,"false")
       home.saveSettings()
       home.blinkGroup( home.private.get('HueGroups','main_floor') )
@@ -34,7 +34,6 @@ def main(argv):
 
   if run:
     logging.debug('Executing RUN()')
-    time.sleep(2)
     home.public.set('settings','autorun', 'false')
 
     cs = []
@@ -71,7 +70,7 @@ def main(argv):
           cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice'+str(x)+'_name')+ '" off'
           proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
           (out, err) = proc.communicate()
-          logging.info(cmd)
+          logging.debug(cmd)
 
     if home.private.getboolean("Devices", "Kevo"):
       # lock the door if necessary
@@ -87,6 +86,7 @@ def main(argv):
     logging.debug('removeing '+leaveFile)
     os.remove(leaveFile)
 
+  home.saveSettings()
   end = datetime.datetime.now()
   logging.debug('finished '+str(end-now))
 

@@ -4,7 +4,7 @@ import time, datetime
 from datetime import timedelta
 from dateutil import tz
 import xml.etree.ElementTree as ET
-import os
+import os, subprocess
 import sys, getopt
 import ast
 import configparser
@@ -44,9 +44,9 @@ class Home(object):
   upFile =  private.get('Path','dvr')+'/'+private.get('dvr', 'upFile')
 
   def saveSettings(self):
-    with open(RootPATH+'public.ini', 'w') as configfile:
+    with open(RootPATH+'public.ini', 'w+') as configfile:
       Home.public.write(configfile)
-    with open(RootPATH+'private.ini', 'w') as configfile:
+    with open(RootPATH+'private.ini', 'w+') as configfile:
       Home.private.write(configfile)
 
   def putCommand(self, api_url, payload):
@@ -81,6 +81,7 @@ class Home(object):
         server.sendmail(sent_from, to, email_text)
         server.close()
         Home.private.set("MMS","sent", now )
+        Home.saveSettings(self)
         logging.info(message)
       except:
         logging.error('Something went wrong sending text.')
@@ -128,7 +129,7 @@ class Home(object):
             attribs['power'] = 'ON'
           else:
             attribs['power'] = 'OFF'
-          logging.info(switch.name+':'+str(attribs))
+          logging.debug(switch.name+':'+str(attribs))
         switch.update_attributes(attribs)
 
     Person.logout(session)
@@ -409,4 +410,37 @@ class Home(object):
       logging.debug('END')
       return json.dumps(showlist)
 
+
+
+  #######################
+  # WEMO device CONTROL #
+  def triggerWemoDeviceOn(self, num):
+      if Home.private.getboolean('Wemo', 'wdevice'+str(num)+'_active'):
+          if not Home.public.getboolean('wemo','wdevice'+str(num)+'_status'):
+              cmd = '/usr/local/bin/wemo switch "'+Home.public.get('wemo', 'wdevice'+str(num)+'_name')+ '" on'
+              proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+              (out, err) = proc.communicate()
+              logging.debug(cmd)
+
+  def triggerWemoDeviceOff(self, num):
+      if Home.private.getboolean('Wemo', 'wdevice'+str(num)+'_active'):
+          if Home.public.getboolean('wemo','wdevice'+str(num)+'_status'):
+              cmd = '/usr/local/bin/wemo switch "'+Home.public.get('wemo', 'wdevice'+str(num)+'_name')+ '" off'
+              proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+              (out, err) = proc.communicate()
+              logging.debug(cmd)
+
+  def updateWemo(self):
+      for x in range(1,4):
+          x = str(x)
+          if Home.private.getboolean('Wemo', 'wdevice'+x+'_active'):
+              pDevice = Home.public.get('wemo', 'wdevice'+x+'_status')
+              cmd = '/usr/local/bin/wemo switch "'+Home.public.get('wemo', 'wdevice'+x+'_name')+'" status'
+              proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+              (out, err) = proc.communicate()
+              Home.public.set('wemo', 'wdevice'+x+'_status', out.rstrip(b'\n').decode() )
+              Home.saveSettings(self)
+              cDevice = str(Home.public.get('wemo', 'wdevice'+x+'_status'))
+              if pDevice != cDevice:
+                  logging.info(Home.public.get('wemo', 'wdevice'+x+'_name')+' changed from '+pDevice+' to '+cDevice)
 

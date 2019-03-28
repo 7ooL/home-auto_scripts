@@ -1,5 +1,5 @@
 import time, datetime
-import subprocess, sys, getopt, os, random
+import sys, getopt, os, random, subprocess
 import myhouse
 #import pyInfinitude.pyInfinitude
 import logging
@@ -9,7 +9,8 @@ from subprocess import call
 ##########################
 # HUE Light scene change #
 def triggerSceneChange (z, tag, i, g):
-  logging.info('ZONE:'+str(z)+' TAG:'+str(tag)+' SID:'+str(i)+' GID:'+str(g))
+  logging.debug('ZONE:'+str(z)+' TAG:'+str(tag)+' SID:'+str(i)+' GID:'+str(g))
+  logging.info('Zone'+str(z)+' '+str(tag)+'_'+str(i))
   if 'evening' in tag:
     home.setTransTimeOfScene(home.private.get('HueScenes', 'zone'+str(z)+'_'+str(tag)+'_'+str(i)), home.public.get('zone'+str(z), str(tag)+'_trans_time'))
   else:
@@ -28,37 +29,6 @@ def triggerSceneChange (z, tag, i, g):
   home.public.set('zone'+str(z), 'previousscene', cs)
   logging.debug('previous scene set to: '+cs)
   home.saveSettings()
-
-
-#######################
-# WEMO device CONTROL #
-def triggerWemoDeviceOn(num):
-  if home.private.getboolean('Wemo', 'wdevice'+str(num)+'_active'):
-    if not home.public.getboolean('wemo','wdevice'+str(num)+'_status'):
-      cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+str(num)+'_name')+ '" on'
-      proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
-      (out, err) = proc.communicate()
-      logging.debug(cmd)
-def triggerWemoDeviceOff(num):
-  if home.private.getboolean('Wemo', 'wdevice'+str(num)+'_active'):
-    if home.public.getboolean('wemo','wdevice'+str(num)+'_status'):
-      cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+str(num)+'_name')+ '" off'
-      proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
-      (out, err) = proc.communicate()
-      logging.debug(cmd)
-def updateWemo():
-  for x in range(1,4):
-    x = str(x)
-    if home.private.getboolean('Wemo', 'wdevice'+x+'_active'):
-      pDevice = home.public.get('wemo', 'wdevice'+x+'_status')
-      cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+x+'_name')+'" status'
-      proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True ) 
-      (out, err) = proc.communicate()
-      home.public.set('wemo', 'wdevice'+x+'_status', out.rstrip(b'\n').decode() )
-      home.saveSettings()
-      cDevice = str(home.public.get('wemo', 'wdevice'+x+'_status'))
-      if pDevice != cDevice:
-        logging.info(home.public.get('wemo', 'wdevice'+x+'_name')+' changed from '+pDevice+' to '+cDevice)
 
 #####################################
 # Determine the Hue Tansition Times #
@@ -150,64 +120,6 @@ def main(argv):
      logging.warning("Dropbox isn't running")
      os.system("python3 ~/dropbox.py start >> ~/home-auto_scripts/home-auto.log 2>&1")
 
-  ##########################
-  # Get Vivint Armed State #
-  if home.private.getboolean('Devices','vivint'):
-    old_alarm_state = home.public.get('vivint', 'state')
-    new_alarm_state = home.get_armed_state()
-
-    #####################
-    # Check Who Is Home #
-    if new_alarm_state != old_alarm_state:
-      home.public.set('vivint','state', new_alarm_state)
-      logging.info('vivint changed from '+old_alarm_state+' to '+new_alarm_state)
-      # the new state is armed_away, everyone must be gone, for each person make a leave file
-      # just encase the geo-tracking doesnt work
-      if new_alarm_state == "armed_away":
-        for section in home.public.sections():
-          if section == "people_home":
-            for person, value in home.public.items(section):
-              if value == "true":
-                logging.debug('alarm armed, making leave file for '+person)
-                filename = "AR-leave-"+str(random.randint(1,21))
-                os.system("echo " +person+" > "+filename)
-                time.sleep(2)
-                os.system("python3 leave-script.py " + filename)
-
-    #####################################################
-    # Send a text reminder if not armed by certain time #
-    ar1 = datetime.datetime.strptime(str(home.public.get('vivint', 'remind_time')),'%H:%M:%S')
-    ar2 = (ar1 + datetime.timedelta(minutes=5)).time()
-    ar = str(home.public.get('vivint', 'remind_time')).split(':')
-    ar_l = str(ar2).split(':')
-    if home.private.getboolean('Devices', 'gmail'):
-      logging.debug('checking sms section, ar:'+str(ar)+' ar_l:'+str(ar_l))
-      if now.replace(hour=int(ar[0]), minute=int(ar[1]), second=int(ar[2])) <= now <= now.replace(hour=int(ar_l[0]), minute=int(ar_l[1]), second=int(ar_l[2])):
-        if not home.public.getboolean('vivint', 'reminded'):
-          if new_alarm_state == "disarmed":
-            home.sendText("House is disarmed")
-            home.public.set('vivint', 'reminded', 'true')
-      else:
-        home.public.set('vivint', 'reminded', 'false')
-
-    ############################################################
-    # Send a text reminder if no one is home and its not armed #
-    run_text=True
-    for section in home.public.sections():
-      if section == "people_home":
-        for person, value in home.public.items(section):
-          if value == "true":
-            run_text=False
-            logging.debug('send text check: '+person+' is home')
-
-    if run_text and new_alarm_state == "disarmed":
-      logging.debug("Arm house reminder send triggered")
-      if not home.private.get("MMS","sent"):
-        logging.warning("MMS sent time blank")
-        home.private.set("MMS","sent", now)
-        home.saveSettings()
-      home.sendText("House was left disarmed")
-
   ################################
   # Clean up watch directories #
   call(["find", home.private.get('Path','watch_dir'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
@@ -215,7 +127,7 @@ def main(argv):
   ####################
   # Pull Wemo Status #
   if home.private.getboolean('Devices', 'wemo'):
-    updateWemo()
+    home.updateWemo()
 
   ######################
   # Pull hue schedules #
@@ -421,21 +333,27 @@ def main(argv):
         if home.private.getboolean('Wemo', 'wdevice1_active'):
           d1_on = str(home.public.get('wemo', 'wdevice1_on_time')).split(':')
           d1_off = str(home.public.get('wemo', 'wdevice1_off_time')).split(':')
-          wstatus = home.public.get('wemo', 'wdevice1_status')
           # times must be between 0..59, by doing a -10 it can cause error as it drops below time "0"
-          for i in range(1,3):
-            if int(d1_off[i]) < 11:
-               d1_off[i] = str(49 + int(d1_off[i]))
-            if int(d1_on[i]) < 11:
-               d1_on[i] = str(49 + int(d1_on[i]))
-          logging.debug('COMPARE wemo device1 :'+d1_on[0]+':'+d1_on[1]+':'+d1_on[2]+' <= now <= '+d1_on[0]+':'+str(int(d1_on[1])+10)+':'+d1_on[2])
+#          for i in range(1,3):
+#            if int(d1_off[i]) < 11:
+#              d1_off[i] = str(49 + int(d1_off[i]))
+#            if int(d1_on[i]) < 11:
+#               d1_on[i] = str(49 + int(d1_on[i]))
+          if int(d1_off[1]) < 11:
+            d1_off[0] = str(int(d1_off[0])-1)
+            d1_off[1] = str(49 + int(d1_off[1]))
+          if int(d1_on[1]) < 11:
+            d1_on[0] = str(int(d1_on[0])-1)
+            d1_on[1] = str(49 + int(d1_on[1]))
+          logging.debug('COMPARE wemo device1: '+d1_on[0]+':'+d1_on[1]+':'+d1_on[2]+' <= now <= '+d1_on[0]+':'+str(int(d1_on[1])+2)+':'+d1_on[2])
           if now.replace(hour=int(d1_on[0]), minute=int(d1_on[1]), second=int(d1_on[2])) <= now <= now.replace(hour=int(d1_on[0]), minute=int(d1_on[1])+10, second=int(d1_on[2])):
             logging.debug("Should turn on wemo device 1")
-            triggerWemoDeviceOn(1)
-          logging.debug('COMPARE wemo device1 :'+d1_off[0]+':'+str(int(d1_off[1])-10)+':'+d1_off[2]+' <= now <= '+d1_off[0]+':'+d1_off[1]+':'+d1_off[2])
-          if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
-            logging.debug("Should turn off wemo device 1")
-            triggerWemoDeviceOff(1)
+            home.triggerWemoDeviceOn(1)
+          if home.public.getboolean('wemo', 'wdevice1_status'):
+            logging.debug('COMPARE wemo device1: '+d1_off[0]+':'+str(int(d1_off[1])-2)+':'+d1_off[2]+' <= now <= '+d1_off[0]+':'+d1_off[1]+':'+d1_off[2])
+            if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
+              logging.debug("Should turn off wemo device 1")
+              home.triggerWemoDeviceOff(1)
 
 
     # get the start time for all the scenes and zones
@@ -472,11 +390,11 @@ def main(argv):
     for z in (0,1):
       if cs[z] == 'null':
         if home.public.getboolean('settings', 'morning'):
-          logging.debug('COMPARE zone'+str(z)+'_morning_'+str(i)+':'+str(m[z][0])+':'+str(m[z][1])+':'+str(m[z][2])+' < now < '+str(d[z][0])+':'+str(d[z][1])+':'+str(d[z][2]))
+          logging.debug('COMPARE zone'+str(z)+'_morning_'+str(0)+':'+str(m[z][0])+':'+str(m[z][1])+':'+str(m[z][2])+' < now < '+str(d[z][0])+':'+str(d[z][1])+':'+str(d[z][2]))
           if now.replace(hour=int(m[z][0]), minute=int(m[z][1]), second=int(m[z][2])) <= now <= now.replace(hour=int(d[z][0]), minute=int(d[z][1]), second=int(d[z][2])) :
             if z == 0: # trigger these events only once, not per zone
               if home.private.getboolean('Devices', 'wemo'):
-                triggerWemoDeviceOn(2)
+                home.triggerWemoDeviceOn(2)
               if home.private.getboolean('Devices','decora'):
                 home.decora(home.private.get('Decora', 'switch_1'), 'ON', '50')
                 home.decora(home.private.get('Decora', 'switch_4'), 'ON', '50')
@@ -494,9 +412,9 @@ def main(argv):
     for z in (0,1):
       if cs[z] != 'null':
         if home.public.getboolean('settings', 'daytime'):
-          logging.debug('COMPARE zone'+str(z)+'_daytime_'+str(i)+':'+str(d[z][0])+':'+str(d[z][1])+':'+str(d[z][2])+' < now < '+str(e[z][0][0])+':'+str(e[z][0][1])+':'+str(e[z][0][2]))
+          logging.debug('COMPARE zone'+str(z)+'_daytime_'+str(0)+':'+str(d[z][0])+':'+str(d[z][1])+':'+str(d[z][2])+' < now < '+str(e[z][0][0])+':'+str(e[z][0][1])+':'+str(e[z][0][2]))
           if now.replace(hour=int(d[z][0]), minute=int(d[z][1]), second=int(d[z][2])) <= now <= now.replace(hour=int(e[z][0][0]), minute=int(e[z][0][1]), second=int(e[z][0][2])) :
-            logging.debug('COMPARE zone'+str(z)+'_daytime_'+str(i)+' CS['+str(z)+']='+str(cs[z])+':morning_0,home,null')
+            logging.debug('COMPARE zone'+str(z)+'_daytime_'+str(0)+' CS['+str(z)+']='+str(cs[z])+':morning_0,home,null')
             if cs[z] in ('morning_0','home','null'):
               if z == 0: # trigger these events only once, not per zone
                 if home.private.getboolean('Devices','hue'):
@@ -507,7 +425,7 @@ def main(argv):
                 if home.private.getboolean('Devices','hue'):
                   triggerSceneChange(z,'daytime', 0, int(home.private.get("HueGroups","zone"+str(z))))
                 if home.private.getboolean('Devices', 'wemo'):
-                  triggerWemoDeviceOn(2)
+                  home.triggerWemoDeviceOn(2)
 
     #################
     # VACATION MODE #
@@ -548,7 +466,7 @@ def main(argv):
                   if cs[z] == 'null':
                     calculateEvenings(z,1)
                   if home.private.getboolean('Devices','wemo'):
-                    triggerWemoDeviceOn(2)
+                    home.triggerWemoDeviceOn(2)
                   if home.private.getboolean('Devices','decora'):
                     home.decora(home.private.get('Decora', 'switch_4'), "ON", "100")
                   if home.private.getboolean('Devices','hue'):
@@ -599,7 +517,7 @@ def main(argv):
   for z in (0,1,2):
     fst = home.public.get('zone'+str(z),'evening_first_time').split(':')
     if now <= now.replace(hour=int(fst[0]), minute=int(fst[1]), second=int(fst[2])):
-      logging.debug('Default settings applied zone')
+      logging.debug('Default settings applied zone'+str(z))
       home.public.set('settings','zone'+str(z)+'_evening', 'true')
       if z == 0:
         home.public.set('settings','bedtime', 'false')
@@ -610,11 +528,72 @@ def main(argv):
         calculateEvenings(2,4)
 
 
+  ##########################
+  # Get Vivint Armed State #
+  if home.private.getboolean('Devices','vivint'):
+    old_alarm_state = home.public.get('vivint', 'state')
+    new_alarm_state = home.get_armed_state()
+
+    #####################
+    # Check Who Is Home #
+    if new_alarm_state != old_alarm_state:
+      home.public.set('vivint','state', new_alarm_state)
+      home.saveSettings()
+      logging.info('Vivint changed from '+old_alarm_state+' to '+new_alarm_state)
+      # the new state is armed_away, everyone must be gone, for each person make a leave file
+      # just encase the geo-tracking doesnt work
+      if new_alarm_state == "armed_away":
+        for section in home.public.sections():
+          if section == "people_home":
+            for person, value in home.public.items(section):
+              if value == "true":
+                logging.info('alarm armed, making leave file for '+person)
+                filename = "AR-leave-"+str(random.randint(1,21))
+                os.system("echo " +person+" > "+filename)
+                os.system("mv "+filename+" "+home.private.get('Path','watch_dir')+'/leave')
+#                time.sleep(1)
+#                subprocess.Popen(["python3", "leave-script.py", filename])
+                time.sleep(10)
+
+
+    #####################################################
+    # Send a text reminder if not armed by certain time #
+    ar1 = datetime.datetime.strptime(str(home.public.get('vivint', 'remind_time')),'%H:%M:%S')
+    ar2 = (ar1 + datetime.timedelta(minutes=5)).time()
+    ar = str(home.public.get('vivint', 'remind_time')).split(':')
+    ar_l = str(ar2).split(':')
+    if home.private.getboolean('Devices', 'gmail'):
+      logging.debug('checking sms section, ar:'+str(ar)+' ar_l:'+str(ar_l))
+      if now.replace(hour=int(ar[0]), minute=int(ar[1]), second=int(ar[2])) <= now <= now.replace(hour=int(ar_l[0]), minute=int(ar_l[1]), second=int(ar_l[2])):
+        if not home.public.getboolean('vivint', 'reminded'):
+          if new_alarm_state == "disarmed":
+            home.sendText("House is disarmed")
+            home.public.set('vivint', 'reminded', 'true')
+      else:
+        home.public.set('vivint', 'reminded', 'false')
+
+    ############################################################
+    # Send a text reminder if no one is home and its not armed #
+    run_text=True
+    for section in home.public.sections():
+      if section == "people_home":
+        for person, value in home.public.items(section):
+          if value == "true":
+            run_text=False
+            logging.debug('send text check: '+person+' is home')
+
+    if run_text and new_alarm_state == "disarmed":
+      logging.debug("Arm house reminder send triggered")
+      if not home.private.get("MMS","sent"):
+        logging.warning("MMS sent time blank")
+        home.private.set("MMS","sent", now)
+        home.saveSettings()
+      home.sendText("House was left disarmed")
+
 
   #########################
   # save any new settings #
   #########################
-  home.saveSettings()
   end = datetime.datetime.now()
   logging.debug('finished '+str(end-now))
 # end mai

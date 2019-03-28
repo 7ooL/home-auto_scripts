@@ -42,7 +42,7 @@ def main(argv):
           cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+x+'_name')+'" off'
           proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
           (out, err) = proc.communicate()
-          logging.info(cmd)
+          logging.debug(cmd)
 
   cs = []
   for z in (0,1):  # keep zone 2 active
@@ -63,7 +63,7 @@ def main(argv):
     logging.debug('removeing '+bedFile)
 
   end = datetime.datetime.now()
-  logging.info('finished '+str(end-now))
+  logging.debug('finished '+str(end-now))
 
 if __name__ == "__main__":
   if len(sys.argv) == 1: 

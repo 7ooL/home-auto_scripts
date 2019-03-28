@@ -21,14 +21,14 @@ def main(argv):
       if home.public.getboolean('people_home',s):
         logging.info(s+' arrived, but is already home')
       else:
-        logging.info('marking '+s+' as home')
+        logging.info('Marking '+s+' as home')
         home.public.set("people_home", s,"true")
         home.saveSettings()
         run=True
 
 
   if run:
-    logging.info('Executing RUN()')
+    logging.debug('Executing RUN()')
     home.public.set('settings','autorun', 'true')
     if home.private.getboolean('Devices','hue'):
       home.playScene(home.private.get('HueScenes', 'zone0_home'), home.private.get('HueGroups','zone0')) 

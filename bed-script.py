@@ -11,10 +11,15 @@ def main(argv):
 
   logging.info('Running bed script')
 
-  home.public.set('settings','bedtime', 'true')
 
-  # turn off all lights
-  home.groupLightsOff(0)
+  cs = []
+  for z in (0,1,2):
+    home.public.set('zone'+str(z),'currentscene', 'null')
+    logging.debug('zone'+str(z)+' current scene set to: null')
+    home.public.set('settings','zone'+str(z)+'_evening', 'false')
+    home.public.set('settings','bedtime', 'true')
+    home.saveSettings()
+
 
   # lock the door if necessary
   if home.private.getboolean('Devices', 'kevo'):
@@ -33,7 +38,7 @@ def main(argv):
     home.public.set("settings","autorun", settings['autorun'])
     home.private.set('Movie','settings', 'Null' )
     logging.info('Restoring: '+str(settings))
- 
+
   # save new settings
   home.saveSettings()
 
@@ -48,6 +53,10 @@ def main(argv):
     # counter 3
     home.singleLightCountdown("20", 100)
 
+  # turn off all lights
+  home.groupLightsOff(0)
+
+
   # turn off other lights
   if home.private.getboolean('Devices', 'decora'):
     for x in range(1,6):
@@ -57,21 +66,7 @@ def main(argv):
   # turn off wemo devices
   if home.private.getboolean('Devices', 'wemo'):
     for x in range(1,4):
-      x = str(x)
-      if home.private.getboolean('Wemo', 'wdevice'+x+'_active'):
-        if home.public.get('wemo', 'wdevice'+x+'_status'):
-          cmd = '/usr/local/bin/wemo switch "'+home.public.get('wemo', 'wdevice'+x+'_name')+'" off'
-          proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
-          (out, err) = proc.communicate()
-          logging.info(cmd)
-
-
-  cs = []
-  for z in (0,1,2):
-    home.public.set('zone'+str(z),'currentscene', 'null')
-    logging.debug('zone'+str(z)+' current scene set to: null')
-    home.public.set('settings','zone'+str(z)+'_evening', 'false')
-    home.saveSettings()
+      home.triggerWemoDeviceOff(x)
 
   # remove file that triggered script
   if os.path.isfile(bedFile):
@@ -79,7 +74,7 @@ def main(argv):
     logging.debug('removeing '+bedFile)
 
   end = datetime.datetime.now()
-  logging.info('finished '+str(end-now))
+  logging.debug('finished '+str(end-now))
 
 if __name__ == "__main__":
   if len(sys.argv) == 1: 
