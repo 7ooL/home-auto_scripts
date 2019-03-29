@@ -427,6 +427,7 @@ def main(argv):
                 if home.private.getboolean('Devices', 'wemo'):
                   home.triggerWemoDeviceOn(2)
 
+
     #################
     # VACATION MODE #
     # if its past the vacation on time turn on the lights and trigger the first scene
@@ -471,6 +472,9 @@ def main(argv):
                     home.decora(home.private.get('Decora', 'switch_4'), "ON", "100")
                   if home.private.getboolean('Devices','hue'):
                     triggerSceneChange(z,'evening', i, int(home.private.get("HueGroups","zone"+str(z))))
+                  if home.private.getboolean('Devices','decora') and home.public.getboolean('settings', 'vacation'):
+                    home.decora(home.private.get('Decora', 'switch_1'), 'ON', '75')
+                    home.decora(home.private.get('Decora', 'switch_4'), 'ON', '75')
 
     ############################
     # EVENING CYCLE MODE ZONE2 #
@@ -503,6 +507,7 @@ def main(argv):
       if home.public.getboolean('settings', 'vacation') and now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])) <= now:
         if cs[z] == 'evening_4':
           logging.info('vacation mode enabled, turning lights off')
+          home.sendText("House is in vacation mode, turning off lights")
           home.groupLightsOff(0)
           home.public.set('zone'+str(z),'currentscene', 'vaca_off')
 
