@@ -80,7 +80,7 @@ class Home(object):
         server.login(gmail_user, gmail_password)
         server.sendmail(sent_from, to, email_text)
         server.close()
-        Home.private.set("MMS","sent", now )
+        Home.private.set("MMS","sent", str(now) )
         Home.saveSettings(self)
         logging.info(message)
       except:

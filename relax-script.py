@@ -10,7 +10,7 @@ def main(argv):
   bedFile = sys.argv[1]
 
   logging.info('Running relax script')
-  # this is for when we are in the bedroom and not gfoing back 
+  # this is for when we are in the bedroom and not going back 
   # into the rest of the house at night
 
   home.public.set('settings','zone0_evening', 'false')
@@ -27,9 +27,9 @@ def main(argv):
   # save new settings
   home.saveSettings()
 
-  # turn off other lights
+  # turn off other lights (leave litch lamp on untill bed script)
   if home.private.getboolean('Devices', 'decora'):
-    for x in range(1,6):
+    for x in range(2,home.private.getint('Decora','switch_count')+1)):
       x = str(x)
       home.decora(home.private.get('Decora', 'switch_'+str(x)), "OFF", "None")
 

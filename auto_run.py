@@ -501,15 +501,37 @@ def main(argv):
                 if cs[z] == 'null':
                   calculateEvenings(z,4-i)
                 if home.private.getboolean('Devices','hue'):
+                  if i == 0 and home.public.getboolean('settings', 'vacation'):
+                    home.sendText("House is in vacation mode, begining evening cycle")
                   triggerSceneChange(z,'evening', i, int(home.private.get("HueGroups","zone"+str(z))))
 
-      # if its past the vacation off time turn off the lights
-      if home.public.getboolean('settings', 'vacation') and now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])) <= now:
-        if cs[z] == 'evening_4':
-          logging.info('vacation mode enabled, turning lights off')
-          home.sendText("House is in vacation mode, turning off lights")
-          home.groupLightsOff(0)
-          home.public.set('zone'+str(z),'currentscene', 'vaca_off')
+    # if its past the vacation off time turn off the lights
+    if home.public.getboolean('settings', 'vacation') and now.replace(hour=int(v_off[0]), minute=int(v_off[1]), second=int(v_off[2])) <= now:
+      if cs[z] == 'evening_4':
+        home.sendText("House is in vacation mode, turning off lights")
+        home.groupLightsOff(0)
+        home.public.set('zone'+str(z),'currentscene', 'vaca_off')
+        # turn off wemos
+        for x in range(1,home.private.getint('Wemo','device_count')+1):
+          if home.private.getboolean('Wemo', 'wdevice'+str(x)+'_active'):
+            if home.public.getboolean('wemo','wdevice'+str(x)+'_status'):
+              cmd = '/usr/local/bin/wemo switch "' + home.public.get('wemo', 'wdevice'+str(x)+'_name')+ '" off'
+              proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
+              (out, err) = proc.communicate()
+              logging.debug(cmd)
+        # turn off all decora wifi lights
+        if home.private.getboolean('Devices','decora'):
+          for x in range(1,home.private.getint('Decora','switch_count')+1):
+            home.decora(home.private.get('Decora', 'switch_'+str(x)), "OFF", "None")
+        # clear the scenes
+        cs = []
+        for y in (0,1,2):
+          home.public.set('zone'+str(y),'currentscene', 'vaca_off')
+          logging.debug('zone'+str(y)+' current scene set to: vaca_off')
+          home.public.set('zone'+str(y), 'previousscene', 'vaca_off')
+          logging.debug('zone'+str(y)+' previous scene set to: vaca_off')
+          home.saveSettings()
+
 
   #end auto run
   else:
@@ -531,6 +553,14 @@ def main(argv):
         calculateEvenings(0,2)
         calculateEvenings(1,2)
         calculateEvenings(2,4)
+        if home.public.getboolean('settings', 'vacation'):
+          for y in (0,1,2):
+            home.public.set('zone'+str(y),'currentscene', 'null')
+            logging.debug('zone'+str(y)+' current scene set to: null')
+            home.public.set('zone'+str(y), 'previousscene', 'null')
+            logging.debug('zone'+str(y)+' previous scene set to: null')
+            home.saveSettings()
+
 
 
   ##########################
