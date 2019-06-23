@@ -71,6 +71,11 @@ def privateFile():
     placeHolder='UNDEFINED'
     doTest(file,section,options,placeHolder)
 
+    section = 'HueSchedules'
+    options = ['alarm_work','alarm_weekend']
+    placeHolder='UNDEFINED'
+    doTest(file,section,options,placeHolder)
+
     section = 'HueScenes'
     options = ['clean_all', 'movie', 'movie_chill', 'office_1', 'office_2', 'office_3', 'office_4', 'office_5', 'office_6', 'office_7', 'temp_scene', 'zone0_daytime_0', 'zone0_evening_0', 'zone0_evening_1', 'zone0_home', 'zone0_morning_0', 'zone1_daytime_0', 'zone1_evening_0', 'zone1_evening_1', 'zone1_home', 'zone1_morning_0', 'zone2_evening_0', 'zone2_evening_1', 'zone2_evening_2', 'zone2_evening_3', 'zone2_evening_4', 'zone2_home']
     placeHolder='UNDEFINED_ID'
@@ -82,8 +87,28 @@ def privateFile():
     doTest(file,section,options,placeHolder)
 
     section = 'Wemo'
-    options = ['wdevice1_active','wdevice2_active', 'wdevice3_active']
+    options = ['wdevice1_active','wdevice2_active', 'wdevice3_active', 'device_count']
     placeHolder='UNDEFINED_DEVICE_NAME'
+    doTest(file,section,options,placeHolder)
+
+    section = 'Decora'
+    options = ['username','password', 'switch_count', 'switch_1', 'switch_2', 'switch_3', 'switch_4', 'switch_5', 'switch_6']
+    placeHolder='UNDEFINED_DEVICE_NAME'
+    doTest(file,section,options,placeHolder)
+
+    section = 'Gmail'
+    options = ['username','password']
+    placeHolder='UNDEFINED'
+    doTest(file,section,options,placeHolder)
+
+    section = 'MMS'
+    options = ['email_1','sent', 'delay']
+    placeHolder='UNDEFINED'
+    doTest(file,section,options,placeHolder)
+
+    section = 'Vivint'
+    options = ['username','password']
+    placeHolder='UNDEFINED'
     doTest(file,section,options,placeHolder)
 
     section = 'Kevo'
@@ -139,6 +164,11 @@ def publicFile():
     placeHolder='false'
     doTest(file,section,options,placeHolder)
 
+    section = 'vivint'
+    options = ['state', 'remind_time', 'reminded']
+    placeHolder='UNDEFINED'
+    doTest(file,section,options,placeHolder)
+
     section = 'zone0'
     options = ['currentscene', 'daytime_0_on_time', 'daytime_0_trans_time', 'default_last_time', 'evening_0_on_time', 'evening_1_on_time', 'evening_first_time', 'evening_trans_time', 'last_time', 'morning_0_on_time', 'morning_0_trans_time', 'previousscene']
     placeHolder='UNDEFINED'
@@ -171,6 +201,11 @@ def publicFile():
 
     section = 'profile_current'
     options = ['home_clsp','home_htsp','home_fan','sleep_clsp','sleep_htsp','sleep_fan','wake_clsp','wake_htsp','wake_fan','away_clsp','away_htsp','away_fan','vacmaxt','vacmint','vacfan','manual_clsp','manual_htsp','manual_fan']
+    placeHolder='UNDEFINED'
+    doTest(file,section,options,placeHolder)
+
+    section = 'Time'
+    options = ['trans_percent', 'vaca_on_time', 'vaca_off_time']
     placeHolder='UNDEFINED'
     doTest(file,section,options,placeHolder)
 
@@ -218,6 +253,7 @@ def main(argv):
     group.add_argument("-pu", "--public", action="store_true", help="test the public.ini file")
     args = parser.parse_args()
 
+
     if args.write:
         WRITE = True
     if args.public:
@@ -228,6 +264,6 @@ def main(argv):
 if __name__ == "__main__":
     ret = main(sys.argv)
     if ret is not None:
-        sys.exit(ret)
+         sys.exit(ret)
 
 
