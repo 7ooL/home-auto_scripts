@@ -324,36 +324,39 @@ def main(argv):
   # if auto run is on do auto run stuff
   if home.public.getboolean('settings', 'autoRun'):
 
-    #####################################
-    # Wemo Device 1 CONTROL             #
-    # this device is used on a schedule #
+    ##########################################
+    # Wemo Device CONTROL                    #
+    # these devices are on the same schedule #
     if home.private.getboolean('Devices', 'wemo'):
       # if vacation mode is false check the time
       if not home.public.getboolean('settings', 'vacation'):
-        if home.private.getboolean('Wemo', 'wdevice1_active'):
-          d1_on = str(home.public.get('wemo', 'wdevice1_on_time')).split(':')
-          d1_off = str(home.public.get('wemo', 'wdevice1_off_time')).split(':')
-          # times must be between 0..59, by doing a -10 it can cause error as it drops below time "0"
-#          for i in range(1,3):
-#            if int(d1_off[i]) < 11:
-#              d1_off[i] = str(49 + int(d1_off[i]))
-#            if int(d1_on[i]) < 11:
-#               d1_on[i] = str(49 + int(d1_on[i]))
-          if int(d1_off[1]) < 11:
-            d1_off[0] = str(int(d1_off[0])-1)
-            d1_off[1] = str(49 + int(d1_off[1]))
-          if int(d1_on[1]) < 11:
-            d1_on[0] = str(int(d1_on[0])-1)
-            d1_on[1] = str(49 + int(d1_on[1]))
-          logging.debug('COMPARE wemo device1: '+d1_on[0]+':'+d1_on[1]+':'+d1_on[2]+' <= now <= '+d1_on[0]+':'+str(int(d1_on[1])+2)+':'+d1_on[2])
-          if now.replace(hour=int(d1_on[0]), minute=int(d1_on[1]), second=int(d1_on[2])) <= now <= now.replace(hour=int(d1_on[0]), minute=int(d1_on[1])+10, second=int(d1_on[2])):
-            logging.debug("Should turn on wemo device 1")
-            home.triggerWemoDeviceOn(1)
-          if home.public.getboolean('wemo', 'wdevice1_status'):
-            logging.debug('COMPARE wemo device1: '+d1_off[0]+':'+str(int(d1_off[1])-2)+':'+d1_off[2]+' <= now <= '+d1_off[0]+':'+d1_off[1]+':'+d1_off[2])
-            if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
-              logging.debug("Should turn off wemo device 1")
-              home.triggerWemoDeviceOff(1)
+        #list each device to trigger in this schedule
+        for i in [1,5]:
+          if home.private.getboolean('Wemo', 'wdevice'+str(i)+'_active'):
+            d1_on = str(home.public.get('wemo', 'wdevice'+str(i)+'_on_time')).split(':')
+            d1_off = str(home.public.get('wemo', 'wdevice'+str(i)+'_off_time')).split(':')
+            # times must be between 0..59, by doing a -10 it can cause error as it drops below time "0"
+  #          for i in range(1,3):
+  #            if int(d1_off[i]) < 11:
+  #              d1_off[i] = str(49 + int(d1_off[i]))
+  #            if int(d1_on[i]) < 11:
+  #               d1_on[i] = str(49 + int(d1_on[i]))
+            if int(d1_off[1]) < 11:
+              d1_off[0] = str(int(d1_off[0])-1)
+              d1_off[1] = str(49 + int(d1_off[1]))
+            if int(d1_on[1]) < 11:
+              d1_on[0] = str(int(d1_on[0])-1)
+              d1_on[1] = str(49 + int(d1_on[1]))
+            logging.debug('COMPARE wemo device'+str(i)+': '+d1_on[0]+':'+d1_on[1]+':'+d1_on[2]+' <= now <= '+d1_on[0]+':'+str(int(d1_on[1])+2)+':'+d1_on[2])
+            if now.replace(hour=int(d1_on[0]), minute=int(d1_on[1]), second=int(d1_on[2])) <= now <= now.replace(hour=int(d1_on[0]), minute=int(d1_on[1])+10, second=int(d1_on[2])):
+              logging.debug("Should turn on wemo device "+str(i))
+              home.triggerWemoDeviceOn(i)
+            if home.public.getboolean('wemo', 'wdevice'+str(i)+'_status'):
+              logging.debug('COMPARE wemo device'+str(i)+': '+d1_off[0]+':'+str(int(d1_off[1])-2)+':'+d1_off[2]+' <= now <= '+d1_off[0]+':'+d1_off[1]+':'+d1_off[2])
+              if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
+                logging.debug("Should turn off wemo device "+str(i))
+                home.triggerWemoDeviceOff(i)
+
 
 
     # get the start time for all the scenes and zones
@@ -394,7 +397,10 @@ def main(argv):
           if now.replace(hour=int(m[z][0]), minute=int(m[z][1]), second=int(m[z][2])) <= now <= now.replace(hour=int(d[z][0]), minute=int(d[z][1]), second=int(d[z][2])) :
             if z == 0: # trigger these events only once, not per zone
               if home.private.getboolean('Devices', 'wemo'):
-                home.triggerWemoDeviceOn(2)
+                if home.private.getboolean('Wemo', 'wdevice2_active'):
+                  home.triggerWemoDeviceOn(2)
+                if home.private.getboolean('Wemo', 'wdevice4_active'):
+                  home.triggerWemoDeviceOn(4)
               if home.private.getboolean('Devices','decora'):
                 home.decora(home.private.get('Decora', 'switch_1'), 'ON', '50')
                 home.decora(home.private.get('Decora', 'switch_4'), 'ON', '50')
@@ -425,7 +431,10 @@ def main(argv):
                 if home.private.getboolean('Devices','hue'):
                   triggerSceneChange(z,'daytime', 0, int(home.private.get("HueGroups","zone"+str(z))))
                 if home.private.getboolean('Devices', 'wemo'):
-                  home.triggerWemoDeviceOn(2)
+                  if home.private.getboolean('Wemo', 'wdevice2_active'):
+                    home.triggerWemoDeviceOn(2)
+                  if home.private.getboolean('Wemo', 'wdevice4_active'):
+                    home.triggerWemoDeviceOn(4)
 
 
     #################
@@ -467,7 +476,10 @@ def main(argv):
                   if cs[z] == 'null':
                     calculateEvenings(z,1)
                   if home.private.getboolean('Devices','wemo'):
-                    home.triggerWemoDeviceOn(2)
+                    if home.private.getboolean('Wemo', 'wdevice2_active'):
+                      home.triggerWemoDeviceOn(2)
+                    if home.private.getboolean('Wemo', 'wdevice4_active'):
+                      home.triggerWemoDeviceOn(4)
                   if home.private.getboolean('Devices','decora'):
                     home.decora(home.private.get('Decora', 'switch_4'), "ON", "100")
                   if home.private.getboolean('Devices','hue'):
@@ -511,7 +523,7 @@ def main(argv):
         home.sendText("House is in vacation mode, turning off lights")
         home.groupLightsOff(0)
         home.public.set('zone'+str(z),'currentscene', 'vaca_off')
-        # turn off wemos
+        # turn off all wemos
         for x in range(1,home.private.getint('Wemo','device_count')+1):
           if home.private.getboolean('Wemo', 'wdevice'+str(x)+'_active'):
             if home.public.getboolean('wemo','wdevice'+str(x)+'_status'):

@@ -59,13 +59,13 @@ def main(argv):
 
   # turn off other lights
   if home.private.getboolean('Devices', 'decora'):
-    for x in range(1,home.private.getint('Decora','switch_count')+1)):
+    for x in range(1,home.private.getint('Decora','switch_count')+1):
       x = str(x)
       home.decora(home.private.get('Decora', 'switch_'+str(x)), "OFF", "None")
 
   # turn off wemo devices
   if home.private.getboolean('Devices', 'wemo'):
-    for x in range(1,home.private.getint('Wemo','device_count')+1)):
+    for x in range(1,home.private.getint('Wemo','device_count')+1):
       home.triggerWemoDeviceOff(x)
 
   # remove file that triggered script

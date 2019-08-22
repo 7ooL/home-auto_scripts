@@ -29,7 +29,7 @@ def main(argv):
 
   # turn off other lights (leave litch lamp on untill bed script)
   if home.private.getboolean('Devices', 'decora'):
-    for x in range(2,home.private.getint('Decora','switch_count')+1)):
+    for x in range(2,home.private.getint('Decora','switch_count')+1):
       x = str(x)
       home.decora(home.private.get('Decora', 'switch_'+str(x)), "OFF", "None")
 
