@@ -87,7 +87,7 @@ def privateFile():
     doTest(file,section,options,placeHolder)
 
     section = 'Wemo'
-    options = ['wdevice1_active','wdevice2_active', 'wdevice3_active', 'device_count']
+    options = ['wdevice1_active','wdevice2_active', 'wdevice3_active', 'wdevice4_active', 'wdevice5_active', 'device_count']
     placeHolder='UNDEFINED_DEVICE_NAME'
     doTest(file,section,options,placeHolder)
 
@@ -185,7 +185,7 @@ def publicFile():
     doTest(file,section,options,placeHolder)
 
     section = 'wemo'
-    options = ['wdevice1_name', 'wdevice1_on_time', 'wdevice1_off_time', 'wdevice1_status', 'wdevice2_name', 'wdevice2_on_time', 'wdevice2_off_time', 'wdevice2_status', 'wdevice3_name', 'wdevice3_on_time', 'wdevice3_off_time', 'wdevice3_status']
+    options = ['wdevice1_name', 'wdevice1_on_time', 'wdevice1_off_time', 'wdevice1_status', 'wdevice2_name', 'wdevice2_on_time', 'wdevice2_off_time', 'wdevice2_status', 'wdevice3_name', 'wdevice3_on_time', 'wdevice3_off_time', 'wdevice3_status', 'wdevice4_name', 'wdevice4_off_time', 'wdevice4_on_time', 'wdevice4_status', 'wdevice5_name', 'wdevice5_off_time', 'wdevice5_on_time', 'wdevice5_status']
     placeHolder='UNDEFINED'
     doTest(file,section,options,placeHolder)
 
