@@ -65,7 +65,7 @@ def main(argv):
 
   # turn off wemo devices
   if home.private.getboolean('Devices', 'wemo'):
-    for x in range(1,home.private.getint('Wemo','device_count')+1):
+    for x in range(1,home.private.getint('Wemo','device_count')+1,1):
       home.triggerWemoDeviceOff(x)
 
   # remove file that triggered script

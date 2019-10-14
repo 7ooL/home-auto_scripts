@@ -335,12 +335,6 @@ def main(argv):
           if home.private.getboolean('Wemo', 'wdevice'+str(i)+'_active'):
             d1_on = str(home.public.get('wemo', 'wdevice'+str(i)+'_on_time')).split(':')
             d1_off = str(home.public.get('wemo', 'wdevice'+str(i)+'_off_time')).split(':')
-            # times must be between 0..59, by doing a -10 it can cause error as it drops below time "0"
-  #          for i in range(1,3):
-  #            if int(d1_off[i]) < 11:
-  #              d1_off[i] = str(49 + int(d1_off[i]))
-  #            if int(d1_on[i]) < 11:
-  #               d1_on[i] = str(49 + int(d1_on[i]))
             if int(d1_off[1]) < 11:
               d1_off[0] = str(int(d1_off[0])-1)
               d1_off[1] = str(49 + int(d1_off[1]))
@@ -351,11 +345,14 @@ def main(argv):
             if now.replace(hour=int(d1_on[0]), minute=int(d1_on[1]), second=int(d1_on[2])) <= now <= now.replace(hour=int(d1_on[0]), minute=int(d1_on[1])+10, second=int(d1_on[2])):
               logging.debug("Should turn on wemo device "+str(i))
               home.triggerWemoDeviceOn(i)
-            if home.public.getboolean('wemo', 'wdevice'+str(i)+'_status'):
-              logging.debug('COMPARE wemo device'+str(i)+': '+d1_off[0]+':'+str(int(d1_off[1])-2)+':'+d1_off[2]+' <= now <= '+d1_off[0]+':'+d1_off[1]+':'+d1_off[2])
-              if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
-                logging.debug("Should turn off wemo device "+str(i))
-                home.triggerWemoDeviceOff(i)
+            try:
+              if home.public.getboolean('wemo', 'wdevice'+str(i)+'_status'):
+                logging.debug('COMPARE wemo device'+str(i)+': '+d1_off[0]+':'+str(int(d1_off[1])-2)+':'+d1_off[2]+' <= now <= '+d1_off[0]+':'+d1_off[1]+':'+d1_off[2])
+                if now.replace(hour=int(d1_off[0]), minute=int(d1_off[1])-10, second=int(d1_off[2])) <= now <= now.replace(hour=int(d1_off[0]), minute=int(d1_off[1]), second=int(d1_off[2])):
+                  logging.debug("Should turn off wemo device "+str(i))
+                  home.triggerWemoDeviceOff(i)
+            except:
+              logging.error('wdevice'+str(i)+'_status not found')
 
 
 
