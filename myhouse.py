@@ -20,7 +20,7 @@ from logging.config import BaseConfigurator
 from logging.config import fileConfig
 
 # must define using absolute path
-RootPATH = "/home/ha/home-auto_scripts/" 
+RootPATH = "/home/ha/home_auto_scripts/" 
 
 logging.config.fileConfig(RootPATH+'logging.ini', defaults={'logfilename': RootPATH+'home-auto.log'})
 logging.getLogger("requests").setLevel(logging.WARNING)
