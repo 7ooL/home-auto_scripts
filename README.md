@@ -20,7 +20,7 @@ This program is run as a cron job every minute. I used to run it every 5 minutes
 
 ### cron setup
 ```
-* * * * * cd [your directory]/home-auto_scripts/ && python3 [your directory]/home-auto_scripts/auto_run.py >> [your directory]/home-auto_scripts/home-auto.log 2>&1
+* * * * * cd [your directory]/home_auto_scripts/ && python3 [your directory]/home_auto_scripts/auto_run.py >> [your directory]/home_auto_scripts/home-auto.log 2>&1
 
 ```
 
@@ -35,13 +35,13 @@ I can use IFTTT, Stringify, Alexa, or any other method to create a file. This wi
 
 ### incrontab setup
 ```
-[IFTTT watch dir]/arrive/ IN_MOVED_TO /usr/bin/python3 /home-auto_scripts/arrive-script.py $@$#
-[IFTTT watch dir]/leave/ IN_MOVED_TO /usr/bin/python3 /home-auto_scripts/leave-script.py $@$#
-[IFTTT watch dir]/movie/ IN_MOVED_TO /usr/bin/python3 /home-auto_scripts/movie-script.py $@$#
-[IFTTT watch dir]/bed/ IN_MOVED_TO /usr/bin/python3 /home-auto_scripts/bed-script.py $@$#
-[IFTTT watch dir]/relax/ IN_MOVED_TO /usr/bin/python3 /home-auto_scripts/relax-script.py $@$#
-[IFTTT watch dir]/vacation/ IN_MOVED_TO /usr/bin/python3 /home-auto_scripts/vacation-script.py $@$#
-[IFTTT watch dir]/scenes/ IN_MOVED_TO /usr/bin/python3 /home-auto_scripts/scenes-script.py $@$#
+[IFTTT watch dir]/arrive/ IN_MOVED_TO /usr/bin/python3 /home_auto_scripts/arrive-script.py $@$#
+[IFTTT watch dir]/leave/ IN_MOVED_TO /usr/bin/python3 /home_auto_scripts/leave-script.py $@$#
+[IFTTT watch dir]/movie/ IN_MOVED_TO /usr/bin/python3 /home_auto_scripts/movie-script.py $@$#
+[IFTTT watch dir]/bed/ IN_MOVED_TO /usr/bin/python3 /home_auto_scripts/bed-script.py $@$#
+[IFTTT watch dir]/relax/ IN_MOVED_TO /usr/bin/python3 /home_auto_scripts/relax-script.py $@$#
+[IFTTT watch dir]/vacation/ IN_MOVED_TO /usr/bin/python3 /home_auto_scripts/vacation-script.py $@$#
+[IFTTT watch dir]/scenes/ IN_MOVED_TO /usr/bin/python3 /home_auto_scripts/scenes-script.py $@$#
 ```
 ## Logging
 the log file is ```home-auto.log```
