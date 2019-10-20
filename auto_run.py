@@ -587,17 +587,15 @@ def main(argv):
       # the new state is armed_away, everyone must be gone, for each person make a leave file
       # just encase the geo-tracking doesnt work
       if new_alarm_state == "armed_away":
-        for section in home.public.sections():
-          if section == "people_home":
-            for person, value in home.public.items(section):
-              if value == "true":
-                logging.info('alarm armed, making leave file for '+person)
-                filename = "AR-leave-"+str(random.randint(1,21))
-                os.system("echo " +person+" > "+filename)
-                os.system("mv "+filename+" "+home.private.get('Path','watch_dir')+'/leave')
+        for person, value in home.public.items("people_home"):
+          if value == "true":
+            logging.info('alarm armed, making leave file for '+person)
+            filename = "AR-leave-"+str(random.randint(1,21))
+            os.system("echo " +person+" > "+filename)
+            os.system("mv "+filename+" "+home.private.get('Path','watch_dir')+'/leave')
 #                time.sleep(1)
 #                subprocess.Popen(["python3", "leave-script.py", filename])
-                time.sleep(10)
+            time.sleep(10)
 
 
     #####################################################

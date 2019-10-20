@@ -25,12 +25,10 @@ def main(argv):
       home.blinkGroup( home.private.get('HueGroups','main_floor') )
 
   # check and see if anyone is home, if they are dont run actions
-  for section in home.public.sections():
-    if section == "people_home":
-      for person, value in home.public.items(section):
-        if value == "true":
-          run=False
-          logging.debug(person+' is still home, not running leave function')
+  for person, value in home.public.items("people_home"):
+    if value == "true":
+      run=False
+      logging.debug(person+' is still home, not running leave function')
 
   if run:
     logging.debug('Executing RUN()')
