@@ -431,7 +431,7 @@ class Home(object):
               logging.debug(cmd)
 
   def updateWemo(self):
-      for x in range(1,4):
+      for x in range(1,Home.private.getint('Wemo','device_count')+1,1):
           x = str(x)
           if Home.private.getboolean('Wemo', 'wdevice'+x+'_active'):
               pDevice = Home.public.get('wemo', 'wdevice'+x+'_status')
