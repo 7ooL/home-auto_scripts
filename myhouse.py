@@ -40,9 +40,6 @@ class Home(object):
   HueBridgeIP = private.get('HueBridge','ip')
   HueBridgeUN = private.get('HueBridge','username')
 
-#  hvacIP = private.get('hvac', 'ip')
-#  hvacPort = private.get('hvac', 'port')
-
   recFile = private.get('Path','dvr')+'/'+private.get('dvr', 'recFile')
   upFile =  private.get('Path','dvr')+'/'+private.get('dvr', 'upFile')
 

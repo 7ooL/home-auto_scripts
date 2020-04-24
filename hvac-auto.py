@@ -88,15 +88,15 @@ def main(argv):
 
       current_humid = home.public.get('hvac_current_'+str(s), 'humid')
       if prev_humid !=  current_humid :
-        logging.info('humid status change: '+prev_humid+' to '+current_humid)
+        logging.info('system('+str(s)+') humid status change: '+prev_humid+' to '+current_humid)
 
       current_hold = home.public.get('hvac_current_'+str(s),'hold')
       if prev_hold != current_hold:
-        logging.info('hold status change: '+prev_hold+' to '+current_hold)
+        logging.info('system('+str(s)+') hold status change: '+prev_hold+' to '+current_hold)
 
       current_profile = home.public.get('hvac_current_'+str(s), 'currentactivity')
       if prev_profile != current_profile:
-        logging.info('profile status change: '+prev_profile+' to '+current_profile)
+        logging.info('system('+str(s)+') profile status change: '+prev_profile+' to '+current_profile)
 
       # setTime allows HVAC to be set ahead so not to undo itself
       setTime = datetime.datetime.strptime( (now + datetime.timedelta(minutes=2)).strftime("%H:%M"), '%H:%M')
@@ -112,20 +112,19 @@ def main(argv):
       if home.public.getboolean('settings', 'hvac_auto'):
         ran = False
         # check if any one is home
-        for section in home.public.sections():
-          if section == "people_home":
-            for person, value in home.public.items(section):
-              if value and not ran:
-                ran = True
-                # someone is home, Check HVAC profiles
-                logging.debug(person+' home, checking if AWAY profile')
-                if current_profile == 'away':
-                  # take hold off, defaulting back to per schedule
-                  hvac.pullConfig()
-                  time.sleep(1)
-                  hvac.set_zone_hold(zone,'off')
-                  time.sleep(1)
-                  hvac.pushConfig()
+          # check and see if anyone is home, if they are dont run actions
+        for person, value in home.public.items("people_home"):
+          if value == "true":
+            ran = True
+            # someone is home, Check HVAC profiles
+            logging.debug(person+' home, checking if AWAY profile')
+            if current_profile == 'away':
+              # take hold off, defaulting back to per schedule
+              hvac.pullConfig()
+              time.sleep(1)
+              hvac.set_zone_hold(zone,'off')
+              time.sleep(1)
+              hvac.pushConfig()
 
 
         # if ran is false, then no one is home, check profiles
@@ -141,7 +140,7 @@ def main(argv):
             hvac.set_zone_otmr(zone,newHold.strftime("%H:%M"))
             hvac.set_zone_hold(zone,'on')
             time.sleep(1)
-            logging.info('Set AWAY profile until '+str(newHold))
+            logging.info('system('+str(s)+') Set AWAY profile until '+str(newHold))
             hvac.pushConfig()
 
   end = datetime.datetime.now()

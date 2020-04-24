@@ -178,19 +178,6 @@ def main(argv):
           # set bedroom wake schedule in HUE app
           home.setLightScheduleTime(1,newMorning)
 
-  # set Morning and daytime start
-  for z in (0,1):
-    home.public.set('zone'+str(z),'morning_0_on_time', newMorning)
-    home.public.set('zone'+str(z),'morning_0_trans_time', 100)
-    home.public.set('zone'+str(z),'daytime_0_on_time', newDaytime)
-    home.public.set('zone'+str(z),'daytime_0_trans_time', 18000)
-    logging.debug('zone'+str(z)+' setting morning start: '+str(newMorning))
-    logging.debug('zone'+str(z)+' setting daytime start: '+str(newDaytime))
-    home.saveSettings()
-
-
-
-
   ####################
   # Pull KEVO Status #
   ####################
@@ -326,6 +313,17 @@ def main(argv):
   for z in (0,1,2):
     logging.debug('pull current scene zone:'+str(z))
     cs.append(home.public.get('zone'+str(z),'currentscene'))
+
+
+  # set Morning and daytime start
+  for z in (0,1):
+    home.public.set('zone'+str(z),'morning_0_on_time', newMorning)
+    home.public.set('zone'+str(z),'morning_0_trans_time', 100)
+    home.public.set('zone'+str(z),'daytime_0_on_time', newDaytime)
+    home.public.set('zone'+str(z),'daytime_0_trans_time', 18000)
+    logging.debug('zone'+str(z)+' setting morning start: '+str(newMorning))
+    logging.debug('zone'+str(z)+' setting daytime start: '+str(newDaytime))
+    home.saveSettings()
 
 
   ####################
