@@ -1,16 +1,18 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
+
 import configparser
-import json, os, random
+import json, os, random, subprocess
 import myhouse
 import configparser
 
 app = Flask(__name__)
-
+#CORS(app)
 # unable to use global configparser myhouse.home as it reamined static for the life of the app
 
 @app.route("/")
 def default():
-  return "Home Auto API\n"
+  moddate = os.path.getmtime(RootPATH+'public.ini')
+  return jsonify({'lastModifed':moddate})
 
 @app.route("/people", methods=["GET"])
 def getPeople():
@@ -34,7 +36,7 @@ def getPerson(name):
 @app.route("/people", methods=["POST"])
 def togglePerson():
   if request.data is None:
-    return jsonify({"result":"bad rquest"},400) 
+    return jsonify({"result":"bad rquest"},400)
   try:
     person = request.json['name']
     status = json.loads(getPerson(person).data.decode('utf8'))
@@ -56,6 +58,13 @@ def togglePerson():
     return not_found(request.json['name'])
 
 
+@app.route("/log", methods=["GET"])
+def getLog():
+  f = subprocess.Popen(['tail','-n 1','home-auto.log'],\
+        stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+  log = {'log':f.stdout}
+  print(log)
+#  return log
 
 
 @app.errorhandler(404)

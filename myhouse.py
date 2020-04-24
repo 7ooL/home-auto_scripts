@@ -12,6 +12,7 @@ import configparser
 import logging
 import vivint
 import smtplib
+import requests
 from decora_wifi import DecoraWiFiSession
 from decora_wifi.models.person import Person
 from decora_wifi.models.residential_account import ResidentialAccount
@@ -34,11 +35,13 @@ class Home(object):
   public = configparser.RawConfigParser()
   public.read(RootPATH+'public.ini')
 
+  API = private.get('API','api')
+
   HueBridgeIP = private.get('HueBridge','ip')
   HueBridgeUN = private.get('HueBridge','username')
 
-  hvacIP = private.get('hvac', 'ip')
-  hvacPort = private.get('hvac', 'port')
+#  hvacIP = private.get('hvac', 'ip')
+#  hvacPort = private.get('hvac', 'port')
 
   recFile = private.get('Path','dvr')+'/'+private.get('dvr', 'recFile')
   upFile =  private.get('Path','dvr')+'/'+private.get('dvr', 'upFile')
@@ -443,4 +446,15 @@ class Home(object):
               cDevice = str(Home.public.get('wemo', 'wdevice'+x+'_status'))
               if pDevice != cDevice:
                   logging.info(Home.public.get('wemo', 'wdevice'+x+'_name')+' changed from '+pDevice+' to '+cDevice)
+
+
+  def getPerson(self, name):
+      r = requests.get(url = Home.API+"person/"+name)
+      data = r.json()
+      return data
+
+  def togglePersonHome(self, id):
+      r = requests.get(url =  Home.API+"person/"+str(id)+'/toggleHome')
+      data = r.json()
+      logging.info(data['status'])
 

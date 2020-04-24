@@ -1,7 +1,7 @@
 import time, datetime
 import sys, getopt, os, random, subprocess
 import myhouse
-#import pyInfinitude.pyInfinitude
+import pyInfinitude.pyInfinitude
 import logging
 from decimal import Decimal
 from subprocess import call
@@ -118,7 +118,7 @@ def main(argv):
      logging.debug("Dropbox is running")
     else:
      logging.warning("Dropbox isn't running")
-     os.system("python3 ~/dropbox.py start >> ~/home-auto_scripts/home-auto.log 2>&1")
+     os.system("python3 ~/dropbox.py start >> ~/home_auto_scripts/home-auto.log 2>&1")
 
   ################################
   # Clean up watch directories #
@@ -140,6 +140,55 @@ def main(argv):
     home.public.set('wakeup_schedule', 'weekend_localtime', lightSchedule['localtime']) 
     home.public.set('wakeup_schedule', 'weekend_status', lightSchedule['status']) 
     home.saveSettings()
+
+  ###########################
+  # global morning settings #
+  ###########################
+
+  # if choseing to use hue schedule as the way to set global morning values
+  if home.private.getboolean('HueBridge', 'alarm_use'):
+    if today in range(5):
+      wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
+    else:
+      wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
+    if wm != 'null':
+      logging.debug('we have a wake up morning time')
+      wake_morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
+      home.public.set('mornings', str(today)+'_morning', wake_morning)
+      home.saveSettings()
+      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
+      # make the morning triggers 10 minutes before global to allow fades
+      #hue schedule already sets time back for fade in
+      newMorning = (global_morning + datetime.timedelta(minutes=10)).time()
+      newDaytime = (global_morning + datetime.timedelta(hours=1)).time()
+  else :
+      # define all morning times based off global morning value
+      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
+      # make the morning triggers 10 minutes before global to allow fades
+      newMorning = (global_morning + datetime.timedelta(minutes=10)).time()
+      newDaytime = (global_morning + datetime.timedelta(hours=1)).time()
+      # check and set morning light alarm clock
+      if today in range(5):
+        wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
+      else:
+        wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
+      if wm != 'null':
+        wake_Morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
+        if newMorning != wake_Morning:
+          # set bedroom wake schedule in HUE app
+          home.setLightScheduleTime(1,newMorning)
+
+  # set Morning and daytime start
+  for z in (0,1):
+    home.public.set('zone'+str(z),'morning_0_on_time', newMorning)
+    home.public.set('zone'+str(z),'morning_0_trans_time', 100)
+    home.public.set('zone'+str(z),'daytime_0_on_time', newDaytime)
+    home.public.set('zone'+str(z),'daytime_0_trans_time', 18000)
+    logging.debug('zone'+str(z)+' setting morning start: '+str(newMorning))
+    logging.debug('zone'+str(z)+' setting daytime start: '+str(newDaytime))
+    home.saveSettings()
+
+
 
 
   ####################
@@ -188,63 +237,71 @@ def main(argv):
   if home.private.getboolean('Devices', 'hvac'):
     # HVAC settings set below for wake and home
     # make the home profile trigger 1.5hrs after morning
-    newHome = (global_Morning + datetime.timedelta(hours=1, minutes=30)).time()
+    newHome = (global_morning + datetime.timedelta(hours=1, minutes=30)).time()
 
-    if not hvac.pullConfig():
-      home.public.set('hvac','status','error')
-    else:
-      home.public.set('hvac','status','ok')
-      zone = int(home.private.get('hvac', 'zone'))
-      # adjust days of week num to allign with carrier and infinitude numbering
-      for day in range(0,7):
-        # nullify each value because if there is no value it will be blank
+    for s in range(0,home.private.getint('HVAC', 'total')):
+
+      hvacIP = home.private.get('HVAC_'+str(s), 'ip')
+      hvacPort = home.private.get('HVAC_'+str(s), 'port')
+      hvacFile = home.private.get('Path','hvac')+'/'+home.private.get('HVAC_'+str(s), 'file')
+      hvacStatus = home.private.get('Path','hvac')+'/'+home.private.get('HVAC_'+str(s), 'status')
+      hvac = pyInfinitude.pyInfinitude.infinitude(hvacIP,hvacPort,hvacFile, hvacStatus)
+
+      if not hvac.pullConfig():
+        home.public.set('hvac_'+str(s),'status','error')
+      else:
+        home.public.set('hvac_'+str(s),'status','ok')
+        zone = int(home.private.get('HVAC_'+str(s), 'zone'))
+        # adjust days of week num to allign with carrier and infinitude numbering
+        for day in range(0,7):
+          # nullify each value because if there is no value it will be blank
+          for period in range(0,5):
+            home.public.set('hvac_'+str(s), "day_"+str(day)+"_event_"+str(period)+"_on_time", 'null')
+            home.public.set('hvac_'+str(s), "day_"+str(day)+"_event_"+str(period)+"_activity", 'null')
+          # pull out all hvac activity and times for schedule, insert it into config file
+            if hvac.get_zone_program_day_period_enabled(zone, day, period) == 'on':
+              home.public.set('hvac_'+str(s), "day_"+str(day)+"_event_"+str(period)+"_on_time", hvac.get_zone_program_day_period_time(zone, day, period)) 
+              home.public.set('hvac_'+str(s), "day_"+str(day)+"_event_"+str(period)+"_activity", hvac.get_zone_program_day_period_activity(zone, day, period)) 
+        # get the HVAC mode
+        home.public.set('hvac_'+str(s),'mode', hvac.get_mode());
+        # pull out clsp and htsp for each profile name
+        # id: 0 = home, 1 = away, 2 = sleep, 3 = wake, 4 = manual
+        for id in range(0,5):
+          profile = hvac.get_zone_activity_name(zone, id)
+          home.public.set('profile_current_'+str(s), profile+'_fan', hvac.get_zone_activity_fan(zone, id))
+          home.public.set('profile_current_'+str(s), profile+'_clsp', hvac.get_zone_activity_clsp(zone, id))
+          home.public.set('profile_current_'+str(s), profile+'_htsp', hvac.get_zone_activity_htsp(zone, id))
+        # get the vacation data too
+        home.public.set('profile_current_'+str(s),'vacmaxt', hvac.get_vacmaxt())
+        home.public.set('profile_current_'+str(s),'vacmint', hvac.get_vacmint())
+        home.public.set('profile_current_'+str(s),'vacfan', hvac.get_vacfan())
+        # find if hvac has a wake profile actively set and set it to be inline with global morning
+        # today only
+        day = (int(datetime.datetime.today().weekday())+1)
+        change=False
+        if day == 7:
+          day = 0
         for period in range(0,5):
-          home.public.set('hvac', "day_"+str(day)+"_event_"+str(period)+"_on_time", 'null')
-          home.public.set('hvac', "day_"+str(day)+"_event_"+str(period)+"_activity", 'null')
-        # pull out all hvac activity and times for schedule, insert it into config file
-          if hvac.get_zone_program_day_period_enabled(zone, day, period) == 'on':
-            home.public.set('hvac', "day_"+str(day)+"_event_"+str(period)+"_on_time", hvac.get_zone_program_day_period_time(zone, day, period)) 
-            home.public.set('hvac', "day_"+str(day)+"_event_"+str(period)+"_activity", hvac.get_zone_program_day_period_activity(zone, day, period)) 
-      # get the HVAC mode
-      home.public.set('hvac','mode', hvac.get_mode());
-      # pull out clsp and htsp for each profile name
-      # id: 0 = home, 1 = away, 2 = sleep, 3 = wake, 4 = manual
-      for id in range(0,5):
-        profile = hvac.get_zone_activity_name(zone, id)
-        home.public.set('profile_current', profile+'_fan', hvac.get_zone_activity_fan(zone, id))
-        home.public.set('profile_current', profile+'_clsp', hvac.get_zone_activity_clsp(zone, id))
-        home.public.set('profile_current', profile+'_htsp', hvac.get_zone_activity_htsp(zone, id))
-      # get the vacation data too
-      home.public.set('profile_current','vacmaxt', hvac.get_vacmaxt())
-      home.public.set('profile_current','vacmint', hvac.get_vacmint())
-      home.public.set('profile_current','vacfan', hvac.get_vacfan())
-      # find if hvac has a wake profile actively set and set it to be inline with global morning
-      # today only
-      day = (int(datetime.datetime.today().weekday())+1)
-      change=False
-      if day == 7:
-        day = 0
-      for period in range(0,5):
-        if home.public.get('hvac', 'day_'+str(day)+'_event_'+str(period)+'_activity') == 'wake':
-          hm = home.public.get('hvac', 'day_'+str(day)+'_event_'+str(period)+'_on_time')
-          hvac_Morning = datetime.datetime.strptime(hm, '%H:%M').time()
-          if hvac_Morning != newMorning:
-            logging.info("Adjusting WAKE profile to "+str(newMorning)+' d:'+str(day))
-            hvac.set_zone_program_day_period_time(zone, day, period, newMorning.strftime('%H:%M'))
-            change=True
-      # check and set todays home profile to be after wake
-      for period in range(0,5):
-        if home.public.get('hvac', 'day_'+str(day)+'_event_'+str(period)+'_activity') == 'home':
-          hm = home.public.get('hvac', 'day_'+str(day)+'_event_'+str(period)+'_on_time')
-          hvac_home = datetime.datetime.strptime(hm, '%H:%M').time()
-          if hvac_home != newHome:
-            logging.info("Adjusting HOME profile to "+str(newHome)+' d:'+str(day))
-            hvac.set_zone_program_day_period_time(zone, day, period, newHome.strftime('%H:%M'))
-            # make the hvac change
-            change=True
-      if change:
-        if not hvac.pushConfig():
-          logging.error('pushConfig failed')
+          if home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_activity') == 'wake':
+            hm = home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_on_time')
+            hvac_Morning = datetime.datetime.strptime(hm, '%H:%M').time()
+            if hvac_Morning != newMorning:
+              logging.info("S("+str(s)+") Adjusting WAKE profile to "+str(newMorning)+' d:'+str(day))
+              hvac.set_zone_program_day_period_time(zone, day, period, newMorning.strftime('%H:%M'))
+              change=True
+        # check and set todays home profile to be after wake
+        for period in range(0,5):
+          if home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_activity') == 'home':
+            hm = home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_on_time')
+            hvac_home = datetime.datetime.strptime(hm, '%H:%M').time()
+            if hvac_home != newHome:
+              logging.info("S("+str(s)+") Adjusting HOME profile to "+str(newHome)+' d:'+str(day))
+              hvac.set_zone_program_day_period_time(zone, day, period, newHome.strftime('%H:%M'))
+              # make the hvac change
+              change=True
+        if change:
+          if not hvac.pushConfig():
+            logging.error('pushConfig failed')
 
 
   ###############################
@@ -270,52 +327,6 @@ def main(argv):
     logging.debug('pull current scene zone:'+str(z))
     cs.append(home.public.get('zone'+str(z),'currentscene'))
 
-  ###########################
-  # global morning settings #
-  ###########################
-
-  # if choseing to use hue schedule as the way to set global morning values
-  if home.private.getboolean('HueBridge', 'alarm_use'):
-    if today in range(5):
-      wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
-    else:
-      wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
-    if wm != 'null':
-      wake_morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
-      home.public.set('mornings', str(today)+'_morning', wake_morning)
-      home.saveSettings()
-      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
-      # make the morning triggers 10 minutes before global to allow fades
-      #hue schedule already sets time back for fade in
-      newMorning = (global_morning + datetime.timedelta(minutes=10)).time()
-      newDaytime = (global_morning + datetime.timedelta(hours=1)).time()
-  else :
-      # define all morning times based off global morning value
-      global_morning = datetime.datetime.strptime(str(home.public.get('mornings', str(today)+'_morning')),'%H:%M:%S')
-      # make the morning triggers 10 minutes before global to allow fades
-      newMorning = (global_morning + datetime.timedelta(minutes=10)).time()
-      newDaytime = (global_morning + datetime.timedelta(hours=1)).time()
-      # check and set morning light alarm clock
-      if today in range(5):
-        wm = home.public.get('wakeup_schedule','work_localtime').split("T",1)[1]
-      else:
-        wm = home.public.get('wakeup_schedule','weekend_localtime').split("T",1)[1]
-      if wm != 'null':
-        wake_Morning = datetime.datetime.strptime(wm, '%H:%M:%S').time()
-        if newMorning != wake_Morning:
-          # set bedroom wake schedule in HUE app
-          home.setLightScheduleTime(1,newMorning)
-
-  # set Morning and daytime start
-  for z in (0,1):
-    home.public.set('zone'+str(z),'morning_0_on_time', newMorning)
-    home.public.set('zone'+str(z),'morning_0_trans_time', 100)
-    home.public.set('zone'+str(z),'daytime_0_on_time', newDaytime)
-    home.public.set('zone'+str(z),'daytime_0_trans_time', 18000)
-    logging.debug('zone'+str(z)+' setting morning start: '+str(newMorning))
-    logging.debug('zone'+str(z)+' setting daytime start: '+str(newDaytime))
-    home.saveSettings()
-
 
   ####################
   # AUTO RUN SECTION #
@@ -331,6 +342,7 @@ def main(argv):
       # if vacation mode is false check the time
       if not home.public.getboolean('settings', 'vacation'):
         #list each device to trigger in this schedule
+        # 1 = lava lamp
         for i in [1,5]:
           if home.private.getboolean('Wemo', 'wdevice'+str(i)+'_active'):
             d1_on = str(home.public.get('wemo', 'wdevice'+str(i)+'_on_time')).split(':')
@@ -398,6 +410,12 @@ def main(argv):
                   home.triggerWemoDeviceOn(2)
                 if home.private.getboolean('Wemo', 'wdevice4_active'):
                   home.triggerWemoDeviceOn(4)
+                if home.private.getboolean('Wemo', 'wdevice5_active'):
+                  home.triggerWemoDeviceOn(5)
+                if home.private.getboolean('Wemo', 'wdevice6_active'):
+                  home.triggerWemoDeviceOn(6)
+                if home.private.getboolean('Wemo', 'wdevice7_active'):
+                  home.triggerWemoDeviceOn(7)
               if home.private.getboolean('Devices','decora'):
                 home.decora(home.private.get('Decora', 'switch_1'), 'ON', '50')
                 home.decora(home.private.get('Decora', 'switch_4'), 'ON', '50')
@@ -643,13 +661,6 @@ def main(argv):
 
 if __name__ == "__main__":
   home = myhouse.Home()
-
-  if home.private.getboolean('Devices', 'hvac'):
-    hvacIP = home.private.get('hvac', 'ip')
-    hvacPort = home.private.get('hvac', 'port')
-    hvacFile = home.private.get('Path','hvac')+"/"+home.private.get('hvac', 'file')
-    hvacStatusFile = home.private.get('Path','hvac')+"/"+home.private.get('hvac', 'status')
-    hvac = pyInfinitude.pyInfinitude.infinitude(hvacIP,hvacPort,hvacFile,hvacStatusFile)
 
   # this allows you to pass in a time for testing ./script <hour> <min>
   now = datetime.datetime.now()

@@ -5,7 +5,7 @@ import logging
 def main(argv):
 
   now = datetime.datetime.now()
-  home = myhouse.Home();
+  home = myhouse.Home()
 
   logging.debug('Running arrive script')
 

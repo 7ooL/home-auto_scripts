@@ -34,6 +34,7 @@ def main(argv):
       home.decora(home.private.get('Decora', 'switch_'+str(x)), "OFF", "None")
 
   # turn off wemo devices not  device 1  (lava lamp in bedroom)
+  # turn off wemo devices not  device 5  (tree in bedroom)
   if home.private.getboolean('Devices', 'wemo'):
     for x in range(2,4):
       x = str(x)
