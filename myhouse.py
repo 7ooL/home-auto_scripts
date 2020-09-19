@@ -415,12 +415,15 @@ class Home(object):
   #######################
   # WEMO device CONTROL #
   def triggerWemoDeviceOn(self, num):
+      logging.debug('start , using id'+str(num))
       if Home.private.getboolean('Wemo', 'wdevice'+str(num)+'_active'):
           if not Home.public.getboolean('wemo','wdevice'+str(num)+'_status'):
               cmd = '/usr/local/bin/wemo switch "'+Home.public.get('wemo', 'wdevice'+str(num)+'_name')+ '" on'
               proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True )
               (out, err) = proc.communicate()
               logging.debug(cmd)
+      else:
+        logging.warning('Wemo device wdevice'+str(num)+' not active')
 
   def triggerWemoDeviceOff(self, num):
       if Home.private.getboolean('Wemo', 'wdevice'+str(num)+'_active'):
@@ -454,4 +457,14 @@ class Home(object):
       r = requests.get(url =  Home.API+"person/"+str(id)+'/toggleHome')
       data = r.json()
       logging.info(data['status'])
+
+  def getHueSensorData(self, id):
+    logging.debug('id:'+str(id))
+    api_url = 'http://'+Home.HueBridgeIP+'/api/'+Home.HueBridgeUN+'/sensors/'+str(id)
+    r = requests.get(api_url)
+    json_str = json.dumps(r.json())
+    json_objects = json.loads(json_str)
+    logging.debug('END')
+    return json_objects
+
 

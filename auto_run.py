@@ -111,6 +111,9 @@ def main(argv):
   # Monday is 0 and Sunday is 6.
   today = now.today().weekday()
 
+# ********
+# CAPABILITY PORTED OVER
+# ********
   ###########
   # DropBox #
   if home.private.getboolean('Devices','dropbox'):
@@ -124,11 +127,17 @@ def main(argv):
   # Clean up watch directories #
   call(["find", home.private.get('Path','watch_dir'), "-type", "f", "-name", "*.txt", "-exec", "rm", "{}", "+"])
 
+# ********
+# CAPABILITY PORTED OVER
+# ********
   ####################
   # Pull Wemo Status #
   if home.private.getboolean('Devices', 'wemo'):
     home.updateWemo()
 
+# ********
+# CAPABILITY PORTED OVER
+# ********
   ######################
   # Pull hue schedules #
   ######################
@@ -177,7 +186,11 @@ def main(argv):
         if newMorning != wake_Morning:
           # set bedroom wake schedule in HUE app
           home.setLightScheduleTime(1,newMorning)
+  logging.debug("Global Morning is: "+global_morning.strftime("%H:%M:%S"))
 
+# ********
+# CAPABILITY IGNORED
+# ********
   ####################
   # Pull KEVO Status #
   ####################
@@ -192,6 +205,9 @@ def main(argv):
     if prevLock != currentLock:
       logging.info('Lock changed from '+prevLock+' to '+currentLock)
 
+# ********
+# CAPABILITY IGNORED
+# ********
   ############################
   # Pull TV shows for 7 days #
   ############################
@@ -232,6 +248,7 @@ def main(argv):
       hvacPort = home.private.get('HVAC_'+str(s), 'port')
       hvacFile = home.private.get('Path','hvac')+'/'+home.private.get('HVAC_'+str(s), 'file')
       hvacStatus = home.private.get('Path','hvac')+'/'+home.private.get('HVAC_'+str(s), 'status')
+      sys_name = home.public.get('hvac_'+str(s), 'name')
       hvac = pyInfinitude.pyInfinitude.infinitude(hvacIP,hvacPort,hvacFile, hvacStatus)
 
       if not hvac.pullConfig():
@@ -268,21 +285,26 @@ def main(argv):
         change=False
         if day == 7:
           day = 0
+        logging.debug("DAY: "+str(day))
         for period in range(0,5):
           if home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_activity') == 'wake':
             hm = home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_on_time')
+            logging.info('hm = '+'hvac_'+str(s)+', day_'+str(day)+'_event_'+str(period)+'_on_time : '+hm)
             hvac_Morning = datetime.datetime.strptime(hm, '%H:%M').time()
+            logging.info("WAKE COMPARE: "+ hvac_Morning.strftime("%m/%d/%Y, %H:%M:%S") + " != " + newMorning.strftime("%m/%d/%Y, %H:%M:%S"))
             if hvac_Morning != newMorning:
-              logging.info("S("+str(s)+") Adjusting WAKE profile to "+str(newMorning)+' d:'+str(day))
+              logging.info("S("+str(s)+") Adjusting "+sys_name+" WAKE profile to "+str(newMorning)+' d:'+str(day))
               hvac.set_zone_program_day_period_time(zone, day, period, newMorning.strftime('%H:%M'))
               change=True
         # check and set todays home profile to be after wake
         for period in range(0,5):
           if home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_activity') == 'home':
+
             hm = home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_on_time')
             hvac_home = datetime.datetime.strptime(hm, '%H:%M').time()
+            logging.info("HOME COMPARE: "+ hvac_Morning.strftime("%m/%d/%Y, %H:%M:%S") + " != " + newMorning.strftime("%m/%d/%Y, %H:%M:%S"))
             if hvac_home != newHome:
-              logging.info("S("+str(s)+") Adjusting HOME profile to "+str(newHome)+' d:'+str(day))
+              logging.info("S("+str(s)+") Adjusting "+sys_name+" HOME profile to "+str(newHome)+' d:'+str(day))
               hvac.set_zone_program_day_period_time(zone, day, period, newHome.strftime('%H:%M'))
               # make the hvac change
               change=True

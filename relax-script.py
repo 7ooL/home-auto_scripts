@@ -1,3 +1,5 @@
+#/usr/bin/python3
+
 import myhouse
 import os, sys, ast, time, datetime
 import logging, subprocess
@@ -27,9 +29,9 @@ def main(argv):
   # save new settings
   home.saveSettings()
 
-  # turn off other lights (leave litch lamp on untill bed script)
+  # turn off other lights (leave hutch lamp on untill bed script)
   if home.private.getboolean('Devices', 'decora'):
-    for x in range(2,home.private.getint('Decora','switch_count')+1):
+    for x in range(1,home.private.getint('Decora','switch_count')+1):
       x = str(x)
       home.decora(home.private.get('Decora', 'switch_'+str(x)), "OFF", "None")
 
@@ -50,13 +52,14 @@ def main(argv):
     home.public.set('zone'+str(z),'currentscene', 'null')
     logging.debug('zone'+str(z)+' current scene set to: null')
     home.saveSettings()
+    # play these scenes
+    home.setTransTimeOfScene(home.private.get('HueScenes', 'zone'+str(z)+'_relax'), 1000)
+    home.playScene(home.private.get('HueScenes', 'zone'+str(z)+'_relax'), home.private.get('HueGroups','zone'+str(z)) )
 
   # turn off all zone lights
-  home.groupLightsOff(home.private.get('HueGroups','main_floor'))
+#  home.groupLightsOff(home.private.get('HueGroups','main_floor'))
   home.groupLightsOff(home.private.get('HueGroups','movie'))
   home.groupLightsOff(home.private.get('HueGroups','basement_hall'))
-
-
 
   # remove file that triggered script
   if os.path.isfile(bedFile):
