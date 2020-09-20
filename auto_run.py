@@ -9,7 +9,7 @@ from subprocess import call
 ##########################
 # HUE Light scene change #
 def triggerSceneChange (z, tag, i, g):
-  logging.debug('ZONE:'+str(z)+' TAG:'+str(tag)+' SID:'+str(i)+' GID:'+str(g))
+  logging.debug('ZONE '+str(z)+' TAG '+str(tag)+' SID '+str(i)+' GID '+str(g))
   logging.info('Zone'+str(z)+' '+str(tag)+'_'+str(i))
   if 'evening' in tag:
     home.setTransTimeOfScene(home.private.get('HueScenes', 'zone'+str(z)+'_'+str(tag)+'_'+str(i)), home.public.get('zone'+str(z), str(tag)+'_trans_time'))
@@ -25,9 +25,9 @@ def triggerSceneChange (z, tag, i, g):
 
   cs = home.public.get('zone'+str(z),'currentscene')
   home.public.set('zone'+str(z),'currentscene', str(tag)+'_'+str(i))
-  logging.debug('zone'+str(z)+' current scene set to: '+str(tag)+'_'+str(i))
+  logging.debug('zone'+str(z)+' current scene set to '+str(tag)+'_'+str(i))
   home.public.set('zone'+str(z), 'previousscene', cs)
-  logging.debug('previous scene set to: '+cs)
+  logging.debug('previous scene set to '+cs)
   home.saveSettings()
 
 #####################################
@@ -38,7 +38,7 @@ def calculateEvenings(z, howmany):
   # 3,600,000/100 = 36000ms = 1 hour
   # 18000 = 30 minutes
   # 27000 = 45 minutes
-  logging.debug('z:'+str(z)+' thismany:'+str(howmany))
+  logging.debug('z '+str(z)+' thismany '+str(howmany))
 
   # if calculate is called and the time is before default start, use default start time to calculate
 
@@ -285,15 +285,15 @@ def main(argv):
         change=False
         if day == 7:
           day = 0
-        logging.debug("DAY: "+str(day))
+        logging.debug("DAY "+str(day))
         for period in range(0,5):
           if home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_activity') == 'wake':
             hm = home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_on_time')
-            logging.info('hm = '+'hvac_'+str(s)+', day_'+str(day)+'_event_'+str(period)+'_on_time : '+hm)
+            logging.debug('hm = '+'hvac_'+str(s)+', day_'+str(day)+'_event_'+str(period)+'_on_time  '+hm)
             hvac_Morning = datetime.datetime.strptime(hm, '%H:%M').time()
-            logging.info("WAKE COMPARE: "+ hvac_Morning.strftime("%m/%d/%Y, %H:%M:%S") + " != " + newMorning.strftime("%m/%d/%Y, %H:%M:%S"))
+            logging.debug("WAKE COMPARE "+ hvac_Morning.strftime("%m/%d/%Y, %H:%M:%S") + " != " + newMorning.strftime("%m/%d/%Y, %H:%M:%S"))
             if hvac_Morning != newMorning:
-              logging.info("S("+str(s)+") Adjusting "+sys_name+" WAKE profile to "+str(newMorning)+' d:'+str(day))
+              logging.info("S("+str(s)+") Adjusting "+sys_name+" WAKE profile to "+str(newMorning)+' d '+str(day))
               hvac.set_zone_program_day_period_time(zone, day, period, newMorning.strftime('%H:%M'))
               change=True
         # check and set todays home profile to be after wake
@@ -302,9 +302,9 @@ def main(argv):
 
             hm = home.public.get('hvac_'+str(s), 'day_'+str(day)+'_event_'+str(period)+'_on_time')
             hvac_home = datetime.datetime.strptime(hm, '%H:%M').time()
-            logging.info("HOME COMPARE: "+ hvac_Morning.strftime("%m/%d/%Y, %H:%M:%S") + " != " + newMorning.strftime("%m/%d/%Y, %H:%M:%S"))
+            logging.debug("HOME COMPARE "+ hvac_Morning.strftime("%m/%d/%Y, %H:%M:%S") + " != " + newMorning.strftime("%m/%d/%Y, %H:%M:%S"))
             if hvac_home != newHome:
-              logging.info("S("+str(s)+") Adjusting "+sys_name+" HOME profile to "+str(newHome)+' d:'+str(day))
+              logging.info("S("+str(s)+") Adjusting "+sys_name+" HOME profile to "+str(newHome)+' d '+str(day))
               hvac.set_zone_program_day_period_time(zone, day, period, newHome.strftime('%H:%M'))
               # make the hvac change
               change=True
